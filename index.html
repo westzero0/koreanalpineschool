@@ -8,18 +8,26 @@
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Supabase JS 라이브러리 CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-slate-100 text-slate-800">
   <div id="root"></div>
 
   <script type="text/babel">
+    // ⚠️ 본인의 Supabase Project URL과 API Key를 입력하세요.
     const SUPABASE_URL = "https://rfcnyfdhtmjvkdcipger.supabase.co";
-    const SUPABASE_ANON_KEY = "sb_publishable_0qx2MvW4AsHrQeHrK7OmzA_kcxFr9yi"; 
     
+    // 👇 아래 따옴표 안에 복사하신 Publishable Key (또는 Legacy anon key)를 넣어주세요.
+    const SUPABASE_ANON_KEY = "sb_publishable_0qx2MvW4AsHrQeHrK7OmzA_kcxFr9yi"; 
+
     let supabase = null;
     try {
-      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      if (window.supabase && typeof window.supabase.createClient === 'function') {
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      } else {
+        throw new Error("Supabase CDN 라이브러리가 로드되지 않았습니다.");
+      }
     } catch(e) {
       console.error("Supabase 초기화 에러:", e);
     }
@@ -32,7 +40,7 @@
 
     const ADMIN_PASS = "1234";
 
-    // 생년월일로 나이 계산 함수
+    // 생년월일로 만 나이 계산
     const calculateAge = (birthDateStr) => {
       if (!birthDateStr) return '';
       const birth = new Date(birthDateStr);
@@ -81,9 +89,11 @@
         setLoading(true);
         setDbError(null);
         try {
-          if (!supabase) throw new Error("Supabase 클라이언트 오류");
+          if (!supabase) throw new Error("Supabase 클라이언트가 생성되지 않았습니다. API 키를 확인해 주세요.");
 
-          const { data: stData } = await supabase.from('students').select('*').order('name');
+          const { data: stData, error: stErr } = await supabase.from('students').select('*').order('name');
+          if (stErr) throw stErr;
+
           const { data: instData } = await supabase.from('instructors').select('*').order('last_login', { ascending: false });
           const { data: grpData } = await supabase.from('groups').select('*').order('created_at');
           const { data: evData } = await supabase.from('evaluations').select('*');
@@ -578,7 +588,7 @@
                           </div>
                         </div>
 
-                        {/* 4. 교육생 세부 정보 관리 (생년월일, 나이, 특이사항) */}
+                        {/* 4. 교육생 세부 정보 관리 */}
                         <div className="bg-white p-3.5 rounded-xl border space-y-3 shadow-sm">
                           <div className="font-bold text-xs text-indigo-900">3. 교육생 프로필 & 인적사항 수정</div>
                           <div className="space-y-3">
@@ -628,11 +638,10 @@
                           </div>
                         </div>
 
-                        {/* 5. 교육생 조 배정 (미배정 목록 vs 조별 카드) */}
+                        {/* 5. 교육생 조 배정 */}
                         <div className="bg-white p-3.5 rounded-xl border space-y-3 shadow-sm">
                           <div className="font-bold text-xs text-indigo-900">4. 교육생 조 배정</div>
                           
-                          {/* 미배정 교육생 섹션 */}
                           <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl space-y-2">
                             <div className="text-xs font-bold text-amber-900 flex justify-between items-center">
                               <span>⏳ 미배정 교육생 ({unassignedStudents.length}명)</span>
@@ -663,7 +672,6 @@
                             )}
                           </div>
 
-                          {/* 조별 배정 카드 */}
                           <div className="space-y-3 pt-2">
                             {groups.map(g => {
                               const groupStudents = rankedStudents.filter(s => editingGroups[s.id] === g);
@@ -735,7 +743,7 @@
             </div>
           )}
 
-          {/* Modal: 평가 입력 및 상세 정보 */}
+          {/* Modal: 평가 입력 */}
           {selectedStudent && (
             <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
               <div className="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-4 max-h-[85vh] overflow-y-auto space-y-4">
