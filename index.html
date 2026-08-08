@@ -21,16 +21,18 @@
     // 👇 아래 따옴표 안에 복사하신 Publishable Key (또는 Legacy anon key)를 넣어주세요.
     const SUPABASE_ANON_KEY = "sb_publishable_0qx2MvW4AsHrQeHrK7OmzA_kcxFr9yi"; 
 
-    let supabase = null;
-    try {
-      if (window.supabase && typeof window.supabase.createClient === 'function') {
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      } else {
-        throw new Error("Supabase CDN 라이브러리가 로드되지 않았습니다.");
-      }
-    } catch(e) {
-      console.error("Supabase 초기화 에러:", e);
-    }
+  let supabase = null;
+try {
+  if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  } else if (typeof createClient === 'function') {
+    supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  } else {
+    throw new Error("Supabase CDN 라이브러리를 찾을 수 없습니다.");
+  }
+} catch(e) {
+  console.error("Supabase 초기화 에러:", e);
+}
 
     const CATEGORIES = [
       { id: 'climbing', label: '등반', icon: '🧗‍♂️' },
