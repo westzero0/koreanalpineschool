@@ -379,7 +379,7 @@
                             <div key={s.id} onClick={() => handleOpenStudent(s)} className="bg-white p-3 rounded-2xl border shadow-sm cursor-pointer text-center relative hover:border-amber-400 flex flex-col justify-between">
                               {hasMyEval && <span className="absolute top-2 right-2 text-[10px] bg-emerald-100 text-emerald-700 font-bold px-1.5 py-0.5 rounded">완료</span>}
                               <div>
-                             /*   <img src={s.photo_url || "" /> */
+                                { /*   <img src={s.photo_url || "" /> */}
                                 <div className="flex justify-center items-center gap-1 mb-1">
                                   <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-semibold">{editingGroups[s.id] || '미정'}</span>
                                   {s.age && <span className="text-[10px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-semibold">{s.age}세</span>}
@@ -409,7 +409,7 @@
                       <div key={s.id} onClick={() => handleOpenStudent(s)} className="bg-white p-3 rounded-xl border flex justify-between items-center shadow-sm cursor-pointer">
                         <div className="flex items-center gap-3">
                           <span className="font-bold text-slate-400 text-sm w-5">{idx + 1}</span>
-                      /*    <img src={s.photo_url || "" /> */
+                          { /*    <img src={s.photo_url || "" /> */}
                           <div>
                             <div className="font-bold text-sm flex items-center gap-1">
                               {s.name} 
@@ -449,7 +449,7 @@
                             <div key={s.id} className="bg-white p-4 rounded-2xl border shadow-sm space-y-3">
                               <div className="flex justify-between items-center border-b pb-2">
                                 <div className="flex items-center gap-2">
-                             /*     <img src={s.photo_url || "" /> */
+                                  {   /*     <img src={s.photo_url || "" /> */}
                                   <div>
                                     <div className="font-bold text-sm flex items-center gap-1">
                                       {s.name}
@@ -608,7 +608,7 @@
                               return (
                                 <div key={s.id} className="bg-slate-50 p-3 rounded-xl border space-y-2 text-xs">
                                   <div className="flex items-center gap-2 font-bold text-slate-800">
-                                /*    <img src={s.photo_url || "" /> */
+                                    {  /*    <img src={s.photo_url || "" /> */}
                                     <span>{s.name}</span>
                                     {details.age && <span className="text-[10px] text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">만 {details.age}세</span>}
                                   </div>
@@ -695,7 +695,7 @@
               <div className="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-5 space-y-4 shadow-2xl">
                 <div className="flex justify-between items-start border-b pb-3">
                   <div className="flex items-center gap-3">
-                    <img src={selectedStudent.photo_url || "https://via.placeholder.com/150"} className="w-12 h-12 rounded-full object-cover border" />
+                    {/* <img src={selectedStudent.photo_url || "https://via.placeholder.com/150"} className="w-12 h-12 rounded-full object-cover border" /> */}
                     <div>
                       <h3 className="font-bold text-base text-slate-800 flex items-center gap-1.5">
                         {selectedStudent.name}
