@@ -826,8 +826,7 @@
   );
 })()}
 
-            
-            {activeTab === 'admin' && (
+      {activeTab === 'admin' && (
               <div className="space-y-6">
                 <div className="space-y-3">
                   <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center gap-4">
@@ -878,8 +877,8 @@
                         <div className="flex items-center gap-3 text-right">
                           <div className="text-[10px] text-slate-600 grid grid-cols-2 gap-x-4 gap-y-1 border-r border-slate-100 pr-3 hidden sm:grid w-48">
                             <div className="flex justify-between items-center"><span className="text-slate-400 shrink-0">등반</span><span>{renderGrade(s.grades.climbing)}</span></div>
-                            <div className="flex justify-between items-center"><span className="text-slate-400 shrink-0">세컨빌레이</span><span>{renderGrade(s.grades.secondBelay)}</span></div>
-                            <div className="flex justify-between items-center"><span className="text-slate-400 shrink-0">리딩빌레이</span><span>{renderGrade(s.grades.leadingBelay)}</span></div>
+                            <div className="flex justify-between items-center"><span className="text-slate-400 shrink-0">세컨</span><span>{renderGrade(s.grades.secondBelay)}</span></div>
+                            <div className="flex justify-between items-center"><span className="text-slate-400 shrink-0">리딩</span><span>{renderGrade(s.grades.leadingBelay)}</span></div>
                             <div className="flex justify-between items-center"><span className="text-slate-400 shrink-0">하강</span><span>{renderGrade(s.grades.rappelling)}</span></div>
                             <div className="flex justify-between items-center col-span-2"><span className="text-slate-400 shrink-0">보행</span><span>{renderGrade(s.grades.walking)}</span></div>
                           </div>
@@ -939,18 +938,18 @@
                             </div>
 
                             <div className="flex items-center gap-2">
-                             <select
-  value={groupInstructors[grpName] || grp.instructor_name || ''}
-  onChange={(e) => handleInstructorChange(grp.id, e.target.value)}
-  className="border border-slate-200 rounded-xl px-3 py-1.5 text-xs bg-white font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
->
-  <option value="">담당 강사 선택</option>
-  {instructors.map((inst) => (
-    <option key={inst.id || inst} value={inst.name || inst}>
-      {inst.name || inst}
-    </option>
-  ))}
-</select>
+                              <select
+                                value={g.instructor_name || ''}
+                                onChange={(e) => handleInstructorChange(g.id, e.target.value)}
+                                className="text-xs font-semibold bg-white border border-slate-300 text-slate-800 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                              >
+                                <option value="">담당 강사 선택</option>
+                                {instructors.map((ins) => (
+                                  <option key={ins.id} value={ins.name}>
+                                    {ins.name}
+                                  </option>
+                                ))}
+                              </select>
 
                               <button onClick={() => handleDeleteGroup(g.id, g.name)} className="text-xs text-slate-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-colors" title="조 삭제">
                                 🗑️
