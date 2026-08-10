@@ -919,18 +919,18 @@
                             </div>
 
                             <div className="flex items-center gap-2">
-                              <select
-                                value={g.instructor_name || ''}
-                                onChange={(e) => handleInstructorChange(g.id, e.target.value)}
-                                className="text-xs font-semibold bg-white border border-slate-300 text-slate-800 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                              >
-                                <option value="">담당 강사 선택</option>
-                                {instructors.map((ins) => (
-                                  <option key={ins.id} value={ins.name}>
-                                    {ins.name}
-                                  </option>
-                                ))}
-                              </select>
+                             <select
+  value={groupInstructors[grpName] || grp.instructor_name || ''}
+  onChange={(e) => handleInstructorChange(grp.id, e.target.value)}
+  className="border border-slate-200 rounded-xl px-3 py-1.5 text-xs bg-white font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+>
+  <option value="">담당 강사 선택</option>
+  {instructors.map((inst) => (
+    <option key={inst.id || inst} value={inst.name || inst}>
+      {inst.name || inst}
+    </option>
+  ))}
+</select>
 
                               <button onClick={() => handleDeleteGroup(g.id, g.name)} className="text-xs text-slate-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-colors" title="조 삭제">
                                 🗑️
