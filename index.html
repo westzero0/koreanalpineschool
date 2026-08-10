@@ -80,6 +80,78 @@
       }
     };
 
+    // EVAL_STRUCTURE 키를 DB View 키로 매핑
+  const DB_CATEGORY_MAP = {
+    climbing: 'climbing',
+    secondBelay: 'second_belay',
+    leadBelay: 'leading_belay',
+    rappelling: 'rappelling',
+    walking: 'walking'
+  };
+
+  const RATING_SCORES = { 'H': 3, 'M': 2, 'L': 1, 'P': 3, 'F': 1 };
+
+  // 저장 버튼 클릭 시 실행할 함수
+  const handleSave = async (studentId, instructorName, categoryKey, selections, finalResult) => {
+    if (!studentId || !instructorName) {
+      alert("학생과 강사 정보를 확인해 주세요.");
+      return;
+    }
+
+    const dbCategory = DB_CATEGORY_MAP[categoryKey] || categoryKey;
+    const numericScore = RATING_SCORES[finalResult] || 1;
+
+    // 1. 기존 DB 데이터 조회
+    const { data: existing } = await supabase
+      .from('evaluations')
+      .select('details, results')
+      .eq('student_id', studentId)
+      .eq('instructor_name', instructorName)
+      .maybeSingle();
+
+    const currentDetails = existing?.details || {};
+    const currentResults = existing?.results || {};
+
+    // 2. 현재 과목 영역만 격리하여 업데이트
+    const updatedDetails = {
+      ...currentDetails,
+      [dbCategory]: selections
+    };
+
+    const updatedResults = {
+      ...currentResults,
+      [dbCategory]: finalResult
+    };
+
+    // 3. Payload 생성
+    const payload = {
+      student_id: studentId,
+      instructor_name: instructorName,
+      details: updatedDetails,
+      results: updatedResults,
+      updated_at: new Date().toISOString()
+    };
+
+    if (dbCategory === 'climbing') payload.climbing_score = numericScore;
+    if (dbCategory === 'second_belay') payload.second_belay_score = numericScore;
+    if (dbCategory === 'leading_belay') payload.leading_belay_score = numericScore;
+    if (dbCategory === 'rappelling') payload.rappelling_score = numericScore;
+    if (dbCategory === 'walking') payload.walking_score = numericScore;
+
+    // 4. Supabase Upsert
+    const { error } = await supabase
+      .from('evaluations')
+      .upsert(payload, { onConflict: 'student_id, instructor_name' });
+
+    if (error) {
+      console.error('저장 에러:', error);
+      alert('저장에 실패했습니다.');
+    } else {
+      alert('성공적으로 저장되었습니다.');
+    }
+  };
+    
+
     const getSurveyData = (student) => {
   if (!student || !student.student_surveys) return null;
   if (Array.isArray(student.student_surveys)) {
@@ -790,109 +862,133 @@ if (stdData) setStudents(stdData);
                   </button>
                 </div>
 
-                {/* MODAL TAB 1: 평가 (선택 즉시 자동 저장) */}
-                {modalTab === 'score' && (
-                  <div className="space-y-4 pt-1">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-slate-400">항목 선택 시 DB에 자동 저장됩니다.</span>
-                      {savingStatus && (
-                        <span className={`font-bold text-[11px] ${savingStatus.includes('실패') ? 'text-red-500' : 'text-emerald-600 animate-pulse'}`}>
-                          {savingStatus}
-                        </span>
-                      )}
+             {/* MODAL TAB 1: 평가 */}
+{modalTab === 'score' && (
+  <div className="space-y-4 pt-1">
+    <div className="flex justify-between items-center text-xs">
+      <span className="text-slate-400">평가 후 하단 [저장하기] 버튼을 눌러주세요.</span>
+      {savingStatus && (
+        <span className={`font-bold text-[11px] ${savingStatus.includes('실패') ? 'text-red-500' : 'text-emerald-600 animate-pulse'}`}>
+          {savingStatus}
+        </span>
+      )}
+    </div>
+
+    {Object.entries(EVAL_STRUCTURE).map(([categoryKey, category]) => (
+      <div key={categoryKey} className="bg-slate-50 p-3.5 rounded-xl border space-y-3">
+        <div className="font-extrabold text-xs text-slate-900 border-b pb-1.5 flex justify-between items-center">
+          <span>{category.title}</span>
+          <span className="text-[10px] font-normal text-slate-400">결과 평가</span>
+        </div>
+
+        {category.subFields.length > 0 && (
+          <div className="space-y-2">
+            {category.subFields.map(sub => {
+              const val = evalDetails[sub.key] || '';
+              return (
+                <div key={sub.key} className="flex justify-between items-center text-xs">
+                  <span className="text-slate-600 font-medium">{sub.label}</span>
+                  {sub.type === 'PF' ? (
+                    <div className="flex gap-1">
+                      {['P', 'F'].map(opt => (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => handleSubFieldChange(sub.key, opt)}
+                          className={`px-2.5 py-1 rounded text-[11px] font-bold border transition-all ${
+                            val === opt 
+                              ? (opt === 'P' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-red-600 text-white border-red-600') 
+                              : 'bg-white text-slate-500 border-slate-200'
+                          }`}
+                        >
+                          {opt === 'P' ? 'Pass' : 'Fail'}
+                        </button>
+                      ))}
                     </div>
-
-                    {Object.entries(EVAL_STRUCTURE).map(([categoryKey, category]) => (
-                      <div key={categoryKey} className="bg-slate-50 p-3.5 rounded-xl border space-y-3">
-                        <div className="font-extrabold text-xs text-slate-900 border-b pb-1.5 flex justify-between items-center">
-                          <span>{category.title}</span>
-                          <span className="text-[10px] font-normal text-slate-400">결과 평가</span>
-                        </div>
-
-                        {category.subFields.length > 0 && (
-                          <div className="space-y-2">
-                            {category.subFields.map(sub => {
-                              const val = evalDetails[sub.key] || '';
-                              return (
-                                <div key={sub.key} className="flex justify-between items-center text-xs">
-                                  <span className="text-slate-600 font-medium">{sub.label}</span>
-                                  {sub.type === 'PF' ? (
-                                    <div className="flex gap-1">
-                                      {['P', 'F'].map(opt => (
-                                        <button
-                                          key={opt}
-                                          type="button"
-                                          onClick={() => handleSubFieldChange(sub.key, opt)}
-                                          className={`px-2.5 py-1 rounded text-[11px] font-bold border transition-all ${
-                                            val === opt 
-                                              ? (opt === 'P' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-red-600 text-white border-red-600') 
-                                              : 'bg-white text-slate-500 border-slate-200'
-                                          }`}
-                                        >
-                                          {opt === 'P' ? 'Pass' : 'Fail'}
-                                        </button>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <div className="flex gap-1">
-                                      {['H', 'M', 'L'].map(opt => (
-                                        <button
-                                          key={opt}
-                                          type="button"
-                                          onClick={() => handleSubFieldChange(sub.key, opt)}
-                                          className={`px-2.5 py-1 rounded text-[11px] font-bold border transition-all ${
-                                            val === opt ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-500 border-slate-200'
-                                          }`}
-                                        >
-                                          {opt === 'H' ? '상' : opt === 'M' ? '중' : '하'}
-                                        </button>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-
-                        <div className="pt-2 border-t flex justify-between items-center bg-amber-50/60 p-2 rounded-lg border border-amber-200">
-                          <span className="text-xs font-bold text-amber-900">결과 (H / M / L)</span>
-                          <div className="flex gap-1.5">
-                            {['H', 'M', 'L'].map(resOpt => {
-                              const isSelected = evalResults[category.resultKey] === resOpt;
-                              return (
-                                <button
-                                  key={resOpt}
-                                  type="button"
-                                  onClick={() => handleResultChange(category.resultKey, resOpt)}
-                                  className={`px-3 py-1 rounded-lg text-xs font-black border transition-all ${
-                                    isSelected 
-                                      ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-sm scale-105' 
-                                      : 'bg-white text-slate-600 border-slate-200'
-                                  }`}
-                                >
-                                  {resOpt === 'H' ? '상(H)' : resOpt === 'M' ? '중(M)' : '하(L)'}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-
-                    <div>
-                      <label className="text-xs font-bold text-slate-700 block mb-1">관찰 메모 & 특이사항 (입력 후 포커스 이동 시 자동저장)</label>
-                      <textarea 
-                        rows="2" 
-                        placeholder="특이사항이나 강점/보완점 입력..."
-                        value={evalNote}
-                        onChange={handleNoteChange}
-                        onBlur={handleNoteBlur}
-                        className="w-full p-2.5 border rounded-xl text-xs bg-slate-50"
-                      ></textarea>
+                  ) : (
+                    /* 하, 중, 상 순서로 변경 */
+                    <div className="flex gap-1">
+                      {['L', 'M', 'H'].map(opt => (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => handleSubFieldChange(sub.key, opt)}
+                          className={`px-2.5 py-1 rounded text-[11px] font-bold border transition-all ${
+                            val === opt ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-500 border-slate-200'
+                          }`}
+                        >
+                          {opt === 'L' ? '하' : opt === 'M' ? '중' : '상'}
+                        </button>
+                      ))}
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* 과목 결과 (하(L) -> 중(M) -> 상(H) 순서로 변경) */}
+        <div className="pt-2 border-t flex justify-between items-center bg-amber-50/60 p-2 rounded-lg border border-amber-200">
+          <span className="text-xs font-bold text-amber-900">결과 (H / M / L)</span>
+          <div className="flex gap-1.5">
+            {['L', 'M', 'H'].map(resOpt => {
+              const isSelected = evalResults[category.resultKey] === resOpt;
+              return (
+                <button
+                  key={resOpt}
+                  type="button"
+                  onClick={() => handleResultChange(category.resultKey, resOpt)}
+                  className={`px-3 py-1 rounded-lg text-xs font-black border transition-all ${
+                    isSelected 
+                      ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-sm scale-105' 
+                      : 'bg-white text-slate-600 border-slate-200'
+                  }`}
+                >
+                  {resOpt === 'L' ? '하(L)' : resOpt === 'M' ? '중(M)' : '상(H)'}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    ))}
+
+    <div>
+      <label className="text-xs font-bold text-slate-700 block mb-1">관찰 메모 & 특이사항</label>
+      <textarea 
+        rows="2" 
+        placeholder="특이사항이나 강점/보완점 입력..."
+        value={evalNote}
+        onChange={handleNoteChange}
+        className="w-full p-2.5 border rounded-xl text-xs bg-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-500"
+      ></textarea>
+    </div>
+
+    {/* 맨 하단 저장하기 / 닫기 버튼 추가 */}
+    <div className="flex justify-end gap-2 pt-3 border-t mt-4">
+      <button
+        type="button"
+        onClick={closeModal} // 모달 닫는 함수명에 맞게 변경해 주세요
+        className="px-4 py-2 bg-slate-200 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-300 transition-all"
+      >
+        닫기
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          // 저장 처리 함수 호출 (예: handleSave)
+          if (typeof handleSave === 'function') handleSave();
+        }}
+        className="px-5 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 shadow-md transition-all"
+      >
+        저장하기
+      </button>
+    </div>
+  </div>
+)}
+
+                
 
                 {/* MODAL TAB 2: 사전 설문 */}
             {modalTab === 'survey' && (
