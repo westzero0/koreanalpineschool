@@ -263,15 +263,26 @@
         }
       };
 
-      const handleInstructorChange = async (groupId, instructorName) => {
-        try {
-          const { error } = await supabase.from('groups').update({ instructor_name: instructorName }).eq('id', groupId);
-          if (error) throw error;
-          setGroups((prev) => prev.map((g) => (g.id === groupId ? { ...g, instructor_name: instructorName } : g)));
-        } catch (err) {
-          alert('강사 지정 실패: ' + err.message);
-        }
-      };
+    const handleInstructorChange = async (groupId, instructorName) => {
+  const targetGroup = groups.find(g => g.id === groupId);
+  if (!targetGroup) return;
+  const groupName = targetGroup.name;
+
+  try {
+    // groups 테이블 대신 group_managers 테이블에 upsert 수행
+    const { error } = await supabase.from('group_managers').upsert(
+      { group_name: groupName, instructor_name: instructorName },
+      { onConflict: 'group_name' }
+    );
+    if (error) throw error;
+
+    // 로컬 상태 업데이트
+    setGroupInstructors(prev => ({ ...prev, [groupName]: instructorName }));
+    setGroups((prev) => prev.map((g) => (g.id === groupId ? { ...g, instructor_name: instructorName } : g)));
+  } catch (err) {
+    alert('강사 지정 실패: ' + err.message);
+  }
+};
 
       const handleGroupChange = async (studentId, newGroup) => {
         try {
