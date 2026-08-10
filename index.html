@@ -628,94 +628,168 @@
               </div>
             )}
 
-      {activeTab === 'admin' && (
-  <div className="space-y-6">
-    {/* 1. 과목별 성적 순위표 섹션 */}
+      {activeTab === 'admin' && (() => {
+  // 헬퍼 함수: P/F 항목에서 H/M/L 환산
+  const calculateGradeFromDetails = (details, keys) => {
+    if (!details || keys.length === 0) return { grade: 'L', score: 1 };
+    let passCount = 0;
+    keys.forEach((key) => {
+      if (details[key] === 'P' || details[key] === 'Pass') passCount++;
+    });
+    const passRatio = passCount / keys.length;
+    if (passRatio >= 0.8) return { grade: 'H', score: 3 };
+    if (passRatio >= 0.5) return { grade: 'M', score: 2 };
+    return { grade: 'L', score: 1 };
+  };
+
+  const scoreToGrade = (score) => {
+    const num = Number(score);
+    if (num >= 2.5) return 'H';
+    if (num >= 1.5) return 'M';
+    if (num > 0) return 'L';
+    return '-';
+  };
+
+  const CATEGORY_KEYS = {
+    climbing: ['cb_harness', 'cb_foot', 'cb_hand', 'cb_stability', 'cb_margin'],
+    secondBelay: ['sb_anchor', 'sb_install', 'sb_ropePull', 'sb_ropeSort', 'sb_lowering'],
+    leadingBelay: ['lb_device', 'lb_shuffle', 'lb_handPos', 'lb_stability'],
+    rappelling: ['rp_ropeInstall', 'rp_ropeFix', 'rp_connect', 'rp_stop', 'rp_ascending', 'rp_skill'],
+  };
+
+  const calculatedList = students
+    .map((student) => {
+      const evalData = evaluations[student.id] || evaluations[student.student_id];
+      const studentEvals = Array.isArray(evalData)
+        ? evalData
+        : Object.values(evalData || {});
+
+      if (!studentEvals || studentEvals.length === 0) {
+        return {
+          ...student,
+          grades: { climbing: '-', secondBelay: '-', leadingBelay: '-', rappelling: '-', walking: '-' },
+          totalScore: 0,
+          evalCount: 0,
+        };
+      }
+
+      const count = studentEvals.length;
+      let sumClimbing = 0, sumSecond = 0, sumLeading = 0, sumRappelling = 0, sumWalking = 0;
+
+      studentEvals.forEach((evalItem) => {
+        const details = evalItem.details || {};
+        sumClimbing += calculateGradeFromDetails(details, CATEGORY_KEYS.climbing).score;
+        sumSecond += calculateGradeFromDetails(details, CATEGORY_KEYS.secondBelay).score;
+        sumLeading += calculateGradeFromDetails(details, CATEGORY_KEYS.leadingBelay).score;
+        sumRappelling += calculateGradeFromDetails(details, CATEGORY_KEYS.rappelling).score;
+        sumWalking += Number(evalItem.walking_score) || 1;
+      });
+
+      const avgClimbing = (sumClimbing / count).toFixed(1);
+      const avgSecond = (sumSecond / count).toFixed(1);
+      const avgLeading = (sumLeading / count).toFixed(1);
+      const avgRappelling = (sumRappelling / count).toFixed(1);
+      const avgWalking = (sumWalking / count).toFixed(1);
+
+      const totalScore = Number(
+        ((Number(avgClimbing) + Number(avgSecond) + Number(avgLeading) + Number(avgRappelling) + Number(avgWalking)) / 5).toFixed(1)
+      );
+
+      return {
+        ...student,
+        grades: {
+          climbing: scoreToGrade(avgClimbing),
+          secondBelay: scoreToGrade(avgSecond),
+          leadingBelay: scoreToGrade(avgLeading),
+          rappelling: scoreToGrade(avgRappelling),
+          walking: scoreToGrade(avgWalking),
+        },
+        totalScore,
+        evalCount: count,
+      };
+    })
+    .sort((a, b) => b.totalScore - a.totalScore);
+
+  return (
     <div className="space-y-6">
-    <div className="space-y-3">
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
-        <div>
-          <h2 className="font-extrabold text-sm text-slate-900">📊 과목별 성적 순위표</h2>
-          <p className="text-[11px] text-slate-500">Pass 비율 기반 파트별 H/M/L 결과 통합</p>
-        </div>
-        <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
-          총 {rankedStudents.length}명
-        </span>
-      </div>
-
-      <div className="space-y-2.5">
-        {rankedStudents.map((s, index) => (
-          <div key={s.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-            {/* 학생 정보 */}
-            <div className="flex items-center gap-3">
-              <span className={`w-5 text-center font-black text-sm ${index === 0 ? 'text-amber-500 text-base' : 'text-slate-400'}`}>
-                {index + 1}
-              </span>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="font-bold text-sm text-slate-800">{s.name}</span>
-                  <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
-                    {s.group_name || '미정'}
-                  </span>
-                </div>
-                <p className="text-[10px] text-slate-400 mt-0.5">평가 강사: {s.evalCount}명</p>
-              </div>
-            </div>
-
-            {/* 항목별 최종 결과 (H / M / L) */}
-            <div className="flex items-center gap-3 text-right">
-              <div className="text-[10px] text-slate-600 grid grid-cols-2 gap-x-2 gap-y-1 border-r pr-3 hidden sm:grid">
-                <div>등반: <span className="font-extrabold text-slate-800">{s.grades.climbing}</span></div>
-                <div>세컨: <span className="font-extrabold text-slate-800">{s.grades.secondBelay}</span></div>
-                <div>리딩: <span className="font-extrabold text-slate-800">{s.grades.leadingBelay}</span></div>
-                <div>하강: <span className="font-extrabold text-slate-800">{s.grades.rappelling}</span></div>
-                <div className="col-span-2 text-left">보행: <span className="font-extrabold text-slate-800">{s.grades.walking}</span></div>
-              </div>
-
-              {/* 종합 평균 점수 */}
-              <div className="bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 text-center min-w-[55px]">
-                <span className="text-[9px] text-slate-400 block font-bold">평균</span>
-                <span className="text-sm font-black text-indigo-900">{s.totalScore}</span>
-              </div>
-            </div>
+      {/* 1. 과목별 성적 순위표 */}
+      <div className="space-y-3">
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
+          <div>
+            <h2 className="font-extrabold text-sm text-slate-900">📊 과목별 성적 순위표</h2>
+            <p className="text-[11px] text-slate-500">Pass 비율 기반 파트별 H/M/L 결과 통합</p>
           </div>
-        ))}
-      </div>
-    </div>
-  </div>
-)}
+          <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
+            총 {calculatedList.length}명
+          </span>
+        </div>
 
-    {/* 2. 조 배정 및 강사 배정 설정 섹션 */}
-    <div className="pt-4 border-t border-slate-200 space-y-4">
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-        <h2 className="font-extrabold text-sm text-slate-900 mb-1">👥 조 및 담당 강사 배정</h2>
-        <p className="text-[11px] text-slate-500 mb-4">각 조별 담당 강사를 지정하거나 수정합니다.</p>
+        <div className="space-y-2.5">
+          {calculatedList.map((s, index) => (
+            <div key={s.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className={`w-5 text-center font-black text-sm ${index === 0 ? 'text-amber-500 text-base' : 'text-slate-400'}`}>
+                  {index + 1}
+                </span>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold text-sm text-slate-800">{s.name}</span>
+                    <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
+                      {s.group_name || '미정'}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-0.5">평가 강사: {s.evalCount}명</p>
+                </div>
+              </div>
 
-        {/* 기존 프로젝트에 작성되어 있던 조/강사 매핑 컴포넌트나 UI 함수 호출 */}
-        {/* 예: groups.map(...) 등으로 조별 강사 지정 드롭다운 출력 */}
-        <div className="space-y-3">
-          {(groups || ['1조', '2조', '3조', '4조']).map((group) => (
-            <div key={group} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-              <span className="font-bold text-xs text-slate-700">{group}</span>
-              <input
-                type="text"
-                placeholder="담당 강사명"
-                defaultValue={groupInstructors?.[group] || ''}
-                onBlur={(e) => {
-                  // 강사 배정 저장 핸들러 연결
-                  if (typeof handleSaveGroupInstructor === 'function') {
-                    handleSaveGroupInstructor(group, e.target.value);
-                  }
-                }}
-                className="text-xs p-2 border border-slate-300 rounded-lg w-36 focus:outline-none focus:ring-1 focus:ring-amber-500"
-              />
+              <div className="flex items-center gap-3 text-right">
+                <div className="text-[10px] text-slate-600 grid grid-cols-2 gap-x-2 gap-y-1 border-r pr-3 hidden sm:grid">
+                  <div>등반: <span className="font-extrabold text-slate-800">{s.grades.climbing}</span></div>
+                  <div>세컨: <span className="font-extrabold text-slate-800">{s.grades.secondBelay}</span></div>
+                  <div>리딩: <span className="font-extrabold text-slate-800">{s.grades.leadingBelay}</span></div>
+                  <div>하강: <span className="font-extrabold text-slate-800">{s.grades.rappelling}</span></div>
+                  <div className="col-span-2 text-left">보행: <span className="font-extrabold text-slate-800">{s.grades.walking}</span></div>
+                </div>
+
+                <div className="bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 text-center min-w-[55px]">
+                  <span className="text-[9px] text-slate-400 block font-bold">평균</span>
+                  <span className="text-sm font-black text-indigo-900">{s.totalScore}</span>
+                </div>
+              </div>
             </div>
           ))}
         </div>
       </div>
+
+      {/* 2. 조 배정 및 강사 배정 설정 섹션 */}
+      <div className="pt-4 border-t border-slate-200 space-y-4">
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <h2 className="font-extrabold text-sm text-slate-900 mb-1">👥 조 및 담당 강사 배정</h2>
+          <p className="text-[11px] text-slate-500 mb-4">각 조별 담당 강사를 지정하거나 수정합니다.</p>
+
+          <div className="space-y-3">
+            {(groups || ['1조', '2조', '3조', '4조']).map((group) => (
+              <div key={group} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <span className="font-bold text-xs text-slate-700">{group}</span>
+                <input
+                  type="text"
+                  placeholder="담당 강사명"
+                  defaultValue={groupInstructors?.[group] || ''}
+                  onBlur={(e) => {
+                    if (typeof handleSaveGroupInstructor === 'function') {
+                      handleSaveGroupInstructor(group, e.target.value);
+                    }
+                  }}
+                  className="text-xs p-2 border border-slate-300 rounded-lg w-36 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
-  </div>
-)}
+  );
+})()}
             
           </main>
 
