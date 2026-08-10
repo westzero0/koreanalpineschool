@@ -178,6 +178,85 @@ const CATEGORY_KEYS = {
         touchEndX.current = 0;
       };
 
+
+      const [groups, setGroups] = useState([]);
+
+useEffect(() => {
+  const fetchGroups = async () => {
+    const { data, error } = await supabase
+      .from('groups')
+      .select('*')
+      .order('name', { ascending: true }); // 이름순 정렬
+
+    if (!error && data) {
+      // '1조', '2조', '10조' 등이 자연스럽게 오름차순 정렬되도록 처리
+      const sorted = data.sort((a, b) => 
+        a.name.localeCompare(b.name, undefined, { numeric: true })
+      );
+      setGroups(sorted);
+    }
+  };
+
+  fetchGroups();
+}, []);
+
+      
+
+      const handleGroupChange = async (studentId, newGroup) => {
+  try {
+    // 1. Supabase students 테이블 업데이트
+    const { error } = await supabase
+      .from('students')
+      .update({ group_name: newGroup })
+      .eq('id', studentId);
+
+    if (error) throw error;
+
+    // 2. 화면 state 업데이트
+    setStudents((prev) =>
+      prev.map((s) =>
+        (s.id === studentId || s.student_id === studentId)
+          ? { ...s, group_name: newGroup }
+          : s
+      )
+    );
+  } catch (err) {
+    console.error('조 변경 실패:', err);
+    alert('조 변경 실패: ' + err.message);
+  }
+};
+
+      const handleResetEvaluations = async () => {
+  const confirmInput = prompt(
+    '⚠️ 모든 학생의 평가 데이터가 삭제됩니다.\n초기화하시려면 "초기화"라고 입력해주세요.'
+  );
+
+  if (confirmInput !== '초기화') {
+    alert('초기화가 취소되었습니다.');
+    return;
+  }
+
+  try {
+    // Supabase evaluations 테이블 전체 삭제
+    // (Supabase 규칙상 전체 삭제 시 조건문 지정 필요)
+    const { error } = await supabase
+      .from('evaluations')
+      .delete()
+      .neq('instructor_name', ''); 
+
+    if (error) throw error;
+
+    // 화면 상태(State) 초기화
+    setEvaluations({});
+    alert('모든 평가 데이터가 성공적으로 초기화되었습니다.');
+  } catch (err) {
+    console.error('초기화 실패:', err);
+    alert('초기화 실패: ' + err.message);
+  }
+};
+
+
+      
       const fetchData = async () => {
         setLoading(true);
         try {
@@ -494,6 +573,8 @@ const CATEGORY_KEYS = {
               >
                 ⚙️ 관리자
               </button>
+
+        
             </div>
           </header>
 
@@ -765,56 +846,98 @@ const calculatedList = (students || [])
   .sort((a, b) => b.totalScore - a.totalScore);
 
   // 3. UI 렌더링
-  return (
-    <div className="space-y-6">
-      {/* 1. 과목별 성적 순위표 */}
-      <div className="space-y-3">
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
-          <div>
-            <h2 className="font-extrabold text-sm text-slate-900">📊 과목별 성적 순위표</h2>
-            <p className="text-[11px] text-slate-500">Pass 비율 기반 파트별 H/M/L 결과 통합</p>
-          </div>
+ return (
+  <div className="space-y-6">
+    {/* 1. 과목별 성적 순위표 */}
+    <div className="space-y-3">
+      {/* 헤더 영역: 제목/설명과 우측 조작 버튼 배치 정돈 */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center gap-4">
+        <div>
+          <h2 className="font-extrabold text-sm text-slate-900">📊 과목별 성적 순위표</h2>
+          <p className="text-[11px] text-slate-500 mt-0.5">평균 점수 및 파트별 H/M/L 결과 통합</p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={handleResetEvaluations}
+            className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-semibold rounded-lg transition-colors"
+          >
+            데이터 초기화
+          </button>
           <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
             총 {calculatedList.length}명
           </span>
         </div>
+      </div>
 
-        <div className="space-y-2.5">
-          {calculatedList.map((s, index) => (
-            <div key={s.id || index} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className={`w-5 text-center font-black text-sm ${index === 0 ? 'text-amber-500 text-base' : 'text-slate-400'}`}>
-                  {index + 1}
-                </span>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-sm text-slate-800">{s.name}</span>
-                    <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
-                      {s.group_name || '미정'}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-0.5">평가 강사: {s.evalCount}명</p>
-                </div>
-              </div>
+      {/* 학생 순위 리스트 */}
+      <div className="space-y-2.5">
+        {calculatedList.map((s, index) => (
+          <div key={s.id || index} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between gap-3">
+            {/* 왼쪽: 순위 + 학생정보 */}
+            <div className="flex items-center gap-3 shrink-0">
+              <span className={`w-5 text-center font-black text-sm ${index === 0 ? 'text-amber-500 text-base' : 'text-slate-400'}`}>
+                {index + 1}
+              </span>
+              <div>
+               <div className="flex items-center gap-1.5">
+  <span className="font-bold text-sm text-slate-800">{s.name}</span>
 
-              <div className="flex items-center gap-3 text-right">
-             <div className="text-[10px] text-slate-600 grid grid-cols-2 gap-x-2 gap-y-1 border-r pr-3 hidden sm:grid">
-  <div>등반: {renderGrade(s.grades.climbing)}</div>
-  <div>세컨: {renderGrade(s.grades.secondBelay)}</div>
-  <div>리딩: {renderGrade(s.grades.leadingBelay)}</div>
-  <div>하강: {renderGrade(s.grades.rappelling)}</div>
-  <div className="col-span-2 text-left">보행: {renderGrade(s.grades.walking)}</div>
+  {/* span 감싸기 제거 및 옵셔널 체이닝(groups?.map) 적용 */}
+  <select
+    value={s.group_name || ''}
+    onChange={(e) => handleGroupChange(s.id || s.student_id, e.target.value)}
+    className="text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200 rounded-md px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+  >
+    <option value="">조 미정</option>
+    {groups?.map((g) => (
+      <option key={g.id} value={g.name}>
+        {g.name}
+      </option>
+    ))}
+  </select>
 </div>
-
-                <div className="bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 text-center min-w-[55px]">
-                  <span className="text-[9px] text-slate-400 block font-bold">평균</span>
-                  <span className="text-sm font-black text-indigo-900">{s.totalScore}</span>
-                </div>
+                <p className="text-[10px] text-slate-400 mt-0.5">평가 강사: {s.evalCount}명</p>
               </div>
             </div>
-          ))}
-        </div>
+
+            {/* 오른쪽: 과목별 등급 그리드 + 평균점수 */}
+            <div className="flex items-center gap-3 text-right">
+              {/* flex justify-between을 적용하여 과목명과 등급 출력을 좌우 양끝 정렬 고정 */}
+              <div className="text-[10px] text-slate-600 grid grid-cols-2 gap-x-4 gap-y-1 border-r border-slate-100 pr-3 hidden sm:grid w-48">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400 shrink-0">등반</span>
+                  <span>{renderGrade(s.grades.climbing)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400 shrink-0">세컨</span>
+                  <span>{renderGrade(s.grades.secondBelay)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400 shrink-0">리딩</span>
+                  <span>{renderGrade(s.grades.leadingBelay)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400 shrink-0">하강</span>
+                  <span>{renderGrade(s.grades.rappelling)}</span>
+                </div>
+                <div className="flex justify-between items-center col-span-2">
+                  <span className="text-slate-400 shrink-0">보행</span>
+                  <span>{renderGrade(s.grades.walking)}</span>
+                </div>
+              </div>
+
+              {/* 평균 점수 배지 */}
+              <div className="bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 text-center min-w-[55px] shrink-0">
+                <span className="text-[9px] text-slate-400 block font-bold">평균</span>
+                <span className="text-sm font-black text-indigo-900">{s.totalScore}</span>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
+    </div>
+  </div>
+);
 
       {/* 2. 조 및 강사 배정 섹션 */}
       <div className="pt-4 border-t border-slate-200 space-y-4">
