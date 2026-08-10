@@ -691,17 +691,7 @@ const CATEGORY_KEYS = {
 
      {activeTab === 'admin' && (() => {
   // 1. 헬퍼 함수 정의
-  const calculateGradeFromDetails = (details, keys) => {
-    if (!details || !keys || keys.length === 0) return { grade: 'L', score: 1 };
-    let passCount = 0;
-    keys.forEach((key) => {
-      if (details[key] === 'P' || details[key] === 'Pass') passCount++;
-    });
-    const passRatio = passCount / keys.length;
-    if (passRatio >= 0.8) return { grade: 'H', score: 3 };
-    if (passRatio >= 0.5) return { grade: 'M', score: 2 };
-    return { grade: 'L', score: 1 };
-  };
+
 
   const scoreToGrade = (score) => {
     const num = Number(score);
