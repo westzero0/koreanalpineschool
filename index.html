@@ -862,11 +862,11 @@ if (stdData) setStudents(stdData);
                   </button>
                 </div>
 
-             {/* MODAL TAB 1: 평가 */}
+           {/* MODAL TAB 1: 평가 */}
 {modalTab === 'score' && (
   <div className="space-y-4 pt-1">
     <div className="flex justify-between items-center text-xs">
-      <span className="text-slate-400">평가 후 하단 [저장하기] 버튼을 눌러주세요.</span>
+      <span className="text-slate-400">평가 입력 후 하단 [저장하기] 버튼을 클릭하세요.</span>
       {savingStatus && (
         <span className={`font-bold text-[11px] ${savingStatus.includes('실패') ? 'text-red-500' : 'text-emerald-600 animate-pulse'}`}>
           {savingStatus}
@@ -874,6 +874,7 @@ if (stdData) setStudents(stdData);
       )}
     </div>
 
+    {/* 평가 항목 루프 */}
     {Object.entries(EVAL_STRUCTURE).map(([categoryKey, category]) => (
       <div key={categoryKey} className="bg-slate-50 p-3.5 rounded-xl border space-y-3">
         <div className="font-extrabold text-xs text-slate-900 border-b pb-1.5 flex justify-between items-center">
@@ -906,7 +907,7 @@ if (stdData) setStudents(stdData);
                       ))}
                     </div>
                   ) : (
-                    /* 하, 중, 상 순서로 변경 */
+                    /* 세부항목 순서: 하, 중, 상 */
                     <div className="flex gap-1">
                       {['L', 'M', 'H'].map(opt => (
                         <button
@@ -928,7 +929,7 @@ if (stdData) setStudents(stdData);
           </div>
         )}
 
-        {/* 과목 결과 (하(L) -> 중(M) -> 상(H) 순서로 변경) */}
+        {/* 과목 결과 (하(L) -> 중(M) -> 상(H) 순서) */}
         <div className="pt-2 border-t flex justify-between items-center bg-amber-50/60 p-2 rounded-lg border border-amber-200">
           <span className="text-xs font-bold text-amber-900">결과 (H / M / L)</span>
           <div className="flex gap-1.5">
@@ -954,6 +955,7 @@ if (stdData) setStudents(stdData);
       </div>
     ))}
 
+    {/* 특이사항 */}
     <div>
       <label className="text-xs font-bold text-slate-700 block mb-1">관찰 메모 & 특이사항</label>
       <textarea 
@@ -965,11 +967,14 @@ if (stdData) setStudents(stdData);
       ></textarea>
     </div>
 
-    {/* 맨 하단 저장하기 / 닫기 버튼 추가 */}
+    {/* 맨 하단 저장하기 / 닫기 버튼 */}
     <div className="flex justify-end gap-2 pt-3 border-t mt-4">
       <button
         type="button"
-        onClick={closeModal} // 모달 닫는 함수명에 맞게 변경해 주세요
+        onClick={() => {
+          if (typeof setSelectedStudent === 'function') setSelectedStudent(null);
+          else if (typeof setIsModalOpen === 'function') setIsModalOpen(false);
+        }}
         className="px-4 py-2 bg-slate-200 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-300 transition-all"
       >
         닫기
@@ -977,7 +982,6 @@ if (stdData) setStudents(stdData);
       <button
         type="button"
         onClick={() => {
-          // 저장 처리 함수 호출 (예: handleSave)
           if (typeof handleSave === 'function') handleSave();
         }}
         className="px-5 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 shadow-md transition-all"
