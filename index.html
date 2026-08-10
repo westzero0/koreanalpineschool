@@ -80,6 +80,15 @@
       }
     };
 
+    const getSurveyData = (student) => {
+  if (!student || !student.student_surveys) return null;
+  if (Array.isArray(student.student_surveys)) {
+    return student.student_surveys[0] || null;
+  }
+  return student.student_surveys;
+};
+
+    
     function App() {
       const [instructorName, setInstructorName] = useState(() => localStorage.getItem('instructorName') || '');
       const [isConfig, setIsConfig] = useState(!localStorage.getItem('instructorName'));
@@ -161,11 +170,6 @@
           const { data: instData } = await supabase.from('instructors').select('*');
           if (instData) setInstructorList(instData);
 
-          const { data: stdData, error: stdErr } = await supabase
-  .from('students')
-  .select('*, student_surveys(*)');
-
-console.log("불러온 교육생 데이터:", stdData);
 
           const { data: gmData } = await supabase.from('group_managers').select('*');
           if (gmData) {
