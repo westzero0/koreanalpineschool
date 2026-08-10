@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>등반 교육생 채점 및 관리 시스템</title>
+  <title>등반 교육생 채점 및 관리 시스템 (Supabase 연동)</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- React & ReactDOM -->
@@ -11,8 +11,8 @@
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <!-- Babel -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
     body { font-family: 'Pretendard', sans-serif; }
@@ -24,10 +24,12 @@
   <script type="text/babel">
     const { useState, useEffect } = React;
 
-    // 초기 샘플 그룹 및 강사
-    const INITIAL_GROUPS = ['A조', 'B조', 'C조'];
-    
-    // 신규 채점 체계 구조 정의
+    // 1. Supabase 클라이언트 연결 설정
+    const SUPABASE_URL = 'https://rfcnyfdhtmjvkdcipger.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_0qx2MvW4AsHrQeHrK7OmzA_kcxFr9yi';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // 2. 신규 채점 체계 구조 정의
     const EVAL_STRUCTURE = {
       climbing: {
         title: '🧗 1. 등반',
@@ -81,41 +83,22 @@
       }
     };
 
-    // 샘플 교육생 데이터
-    const INITIAL_STUDENTS = [
-      { id: '1', name: '김등반', age: 34, team: 'A조', photo_url: '' },
-      { id: '2', name: '이산악', age: 29, team: 'A조', photo_url: '' },
-      { id: '3', name: '박바위', age: 41, team: 'B조', photo_url: '' },
-      { id: '4', name: '최확보', age: 27, team: 'B조', photo_url: '' },
-      { id: '5', name: '정하강', age: 38, team: 'C조', photo_url: '' },
-      { id: '6', name: '한암벽', age: 31, team: '미정', photo_url: '' },
-    ];
-
     function App() {
-      // 상태 관리
+      // 앱 상태
       const [instructorName, setInstructorName] = useState(() => localStorage.getItem('instructorName') || '');
       const [isConfig, setIsConfig] = useState(!localStorage.getItem('instructorName'));
       const [tempName, setTempName] = useState('');
       const [activeTab, setActiveTab] = useState('myGroup'); // 'myGroup', 'allGroup', 'admin'
-      
-      const [groups, setGroups] = useState(() => JSON.parse(localStorage.getItem('groups')) || INITIAL_GROUPS);
-      const [students, setStudents] = useState(() => JSON.parse(localStorage.getItem('students')) || INITIAL_STUDENTS);
-      const [instructorList, setInstructorList] = useState(() => JSON.parse(localStorage.getItem('instructorList')) || [
-        { name: '김강사', last_login: new Date().toISOString() },
-        { name: '박강사', last_login: new Date().toISOString() }
-      ]);
+      const [loading, setLoading] = useState(true);
 
-      // 담당 강사 설정 (조별)
-      const [groupInstructors, setGroupInstructors] = useState(() => JSON.parse(localStorage.getItem('groupInstructors')) || {
-        'A조': '김강사',
-        'B조': '박강사',
-        'C조': ''
-      });
+      // Supabase 데이터 상태
+      const [students, setStudents] = useState([]);
+      const [groups, setGroups] = useState(['A조', 'B조', 'C조']);
+      const [instructorList, setInstructorList] = useState([]);
+      const [groupInstructors, setGroupInstructors] = useState({});
+      const [evaluations, setEvaluations] = useState({}); // { [student_id]: { [instructor_name]: { details, results, note } } }
 
-      // 평가 데이터: { [studentId]: { [instructorName]: { details: {}, results: {}, note: '' } } }
-      const [evaluations, setEvaluations] = useState(() => JSON.parse(localStorage.getItem('evaluations')) || {});
-
-      // 관리자 페이지 전용 편집 상태
+      // 관리자 전용 상태
       const [isAdminAuth, setIsAdminAuth] = useState(false);
       const [adminInput, setAdminInput] = useState('');
       const [editingGroups, setEditingGroups] = useState({});
@@ -125,7 +108,7 @@
 
       // 모달 상태
       const [selectedStudent, setSelectedStudent] = useState(null);
-      const [modalTab, setModalTab] = useState('myScore'); // 'myScore', 'allScores', 'survey'
+      const [modalTab, setModalTab] = useState('myScore');
 
       // 채점 폼 상태
       const [evalDetails, setEvalDetails] = useState({});
@@ -138,30 +121,82 @@
       });
       const [evalNote, setEvalNote] = useState('');
 
-      // 데이터 로컬스토리지 저장
-      useEffect(() => {
-        localStorage.setItem('groups', JSON.stringify(groups));
-        localStorage.setItem('students', JSON.stringify(students));
-        localStorage.setItem('groupInstructors', JSON.stringify(groupInstructors));
-        localStorage.setItem('instructorList', JSON.stringify(instructorList));
-        localStorage.setItem('evaluations', JSON.stringify(evaluations));
-      }, [groups, students, groupInstructors, instructorList, evaluations]);
+      // --- Supabase 실시간 데이터 동기화 ---
+      const fetchData = async () => {
+        setLoading(true);
+        try {
+          // 1. 교육생 데이터 불러오기
+          const { data: stdData, error: stdErr } = await supabase
+            .from('students')
+            .select('*, student_surveys(*)');
+          if (stdErr) throw stdErr;
+          setStudents(stdData || []);
 
-      // 강사 이름 설정
-      const handleSaveInstructorName = () => {
+          // 2. 조 및 강사 매핑 정보 불러오기
+          const { data: grpData, error: grpErr } = await supabase
+            .from('groups')
+            .select('*');
+          if (!grpErr && grpData && grpData.length > 0) {
+            const grpList = grpData.map(g => g.name);
+            setGroups(grpList);
+            const instMap = {};
+            grpData.forEach(g => { instMap[g.name] = g.instructor_name; });
+            setGroupInstructors(instMap);
+          }
+
+          // 3. 접속 강사 목록 불러오기
+          const { data: instData, error: instErr } = await supabase
+            .from('instructors')
+            .select('*');
+          if (!instErr && instData) setInstructorList(instData);
+
+          // 4. 평가 데이터 불러오기
+          const { data: evData, error: evErr } = await supabase
+            .from('evaluations')
+            .select('*');
+          if (!evErr && evData) {
+            const evMap = {};
+            evData.forEach(ev => {
+              if (!evMap[ev.student_id]) evMap[ev.student_id] = {};
+              evMap[ev.student_id][ev.instructor_name] = {
+                details: ev.details || {},
+                results: ev.results || {},
+                note: ev.note || '',
+                updatedAt: ev.updated_at
+              };
+            });
+            setEvaluations(evMap);
+          }
+        } catch (err) {
+          console.error("Supabase 데이터 로딩 실패:", err);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      useEffect(() => {
+        fetchData();
+      }, []);
+
+      // 강사명 설정 & Supabase 접속 기록 업데이트
+      const handleSaveInstructorName = async () => {
         if (!tempName.trim()) return alert('성함을 입력해주세요.');
         const name = tempName.trim();
         setInstructorName(name);
         localStorage.setItem('instructorName', name);
-        
-        // 강사 목록에 추가
-        if (!instructorList.some(i => i.name === name)) {
-          setInstructorList([...instructorList, { name, last_login: new Date().toISOString() }]);
+
+        try {
+          await supabase
+            .from('instructors')
+            .upsert({ name: name, last_login: new Date().toISOString() }, { onConflict: 'name' });
+          fetchData();
+        } catch (e) {
+          console.error("강사 정보 저장 실패:", e);
         }
         setIsConfig(false);
       };
 
-      // 모달 열릴 때 기존 평가 불러오기
+      // 모달 열 때 기존 평가 매핑
       const handleOpenStudentModal = (student) => {
         setSelectedStudent(student);
         setModalTab('myScore');
@@ -190,18 +225,12 @@
         }
       };
 
-      // 세부 평가 선택 핸들러
-      const handleSubFieldChange = (key, val) => {
-        setEvalDetails(prev => ({ ...prev, [key]: val }));
-      };
+      // 평가 선택 처리
+      const handleSubFieldChange = (key, val) => setEvalDetails(prev => ({ ...prev, [key]: val }));
+      const handleResultChange = (resKey, val) => setEvalResults(prev => ({ ...prev, [resKey]: val }));
 
-      // 최종 결과(H/M/L) 선택 핸들러
-      const handleResultChange = (resKey, val) => {
-        setEvalResults(prev => ({ ...prev, [resKey]: val }));
-      };
-
-      // 평가 저장
-      const handleSaveEval = () => {
+      // Supabase에 평가 저장
+      const handleSaveEval = async () => {
         if (!instructorName) {
           alert('강사 이름을 먼저 설정해주세요.');
           setIsConfig(true);
@@ -209,30 +238,34 @@
         }
 
         const studentId = selectedStudent.id;
-        const newStudentEvals = {
-          ...(evaluations[studentId] || {}),
-          [instructorName]: {
-            details: evalDetails,
-            results: evalResults,
-            note: evalNote,
-            updatedAt: new Date().toISOString()
-          }
+        const payload = {
+          student_id: studentId,
+          instructor_name: instructorName,
+          details: evalDetails,
+          results: evalResults,
+          note: evalNote,
+          updated_at: new Date().toISOString()
         };
 
-        setEvaluations(prev => ({
-          ...prev,
-          [studentId]: newStudentEvals
-        }));
+        try {
+          const { error } = await supabase
+            .from('evaluations')
+            .upsert(payload, { onConflict: 'student_id,instructor_name' });
 
-        alert(`${selectedStudent.name} 교육생 평가가 저장되었습니다.`);
-        setSelectedStudent(null);
+          if (error) throw error;
+
+          alert(`${selectedStudent.name} 교육생 평가가 DB에 저장되었습니다.`);
+          setSelectedStudent(null);
+          fetchData(); // DB 동기화
+        } catch (err) {
+          alert('평가 저장 중 오류가 발생했습니다: ' + err.message);
+        }
       };
 
       // 관리자 로그인
       const handleAdminAuth = () => {
         if (adminInput === '1234') {
           setIsAdminAuth(true);
-          // 관리자 편집용 임시데이터 초기화
           const gMap = {};
           students.forEach(s => gMap[s.id] = s.team || '미정');
           setEditingGroups(gMap);
@@ -242,31 +275,34 @@
         }
       };
 
-      // 조 추가/삭제
-      const handleAddGroup = () => {
-        if (!newGroupName.trim()) return;
-        if (groups.includes(newGroupName.trim())) return alert('이미 존재하는 조입니다.');
-        setGroups([...groups, newGroupName.trim()]);
-        setNewGroupName('');
-      };
+      // 관리자 변경사항 Supabase 저장
+      const handleSaveAdminData = async () => {
+        try {
+          // 1. 교육생 조 변경 업데이트
+          for (const s of students) {
+            const newTeam = editingGroups[s.id] || s.team;
+            const newNote = editingStudentDetails[s.id]?.note;
+            if (newTeam !== s.team || newNote !== undefined) {
+              await supabase
+                .from('students')
+                .update({ team: newTeam, ...(newNote !== undefined && { note: newNote }) })
+                .eq('id', s.id);
+            }
+          }
 
-      const handleDeleteGroup = (groupName) => {
-        if (confirm(`${groupName}를 삭제하시겠습니까?`)) {
-          setGroups(groups.filter(g => g !== groupName));
+          // 2. 조별 담당 강사 변경 업데이트
+          for (const g of groups) {
+            const inst = editingInstructors[g] || '';
+            await supabase
+              .from('groups')
+              .upsert({ name: g, instructor_name: inst }, { onConflict: 'name' });
+          }
+
+          alert('관리자 설정이 DB에 반영되었습니다.');
+          fetchData();
+        } catch (err) {
+          alert('저장 실패: ' + err.message);
         }
-      };
-
-      // 관리자 전체 저장
-      const handleSaveAdminData = () => {
-        const updatedStudents = students.map(s => ({
-          ...s,
-          team: editingGroups[s.id] || s.team,
-          note: editingStudentDetails[s.id]?.note !== undefined ? editingStudentDetails[s.id].note : s.note
-        }));
-
-        setStudents(updatedStudents);
-        setGroupInstructors(editingInstructors);
-        alert('관리자 설정이 전체 저장되었습니다.');
       };
 
       // 내 담당 조 구하기
@@ -274,12 +310,15 @@
 
       return (
         <div className="max-w-md mx-auto bg-slate-100 min-h-screen pb-20 relative">
-          {/* 상단 헤더 */}
+          {/* 헤더 */}
           <header className="bg-slate-900 text-white p-4 sticky top-0 z-30 shadow-md">
             <div className="flex justify-between items-center">
               <div>
-                <h1 className="font-extrabold text-base tracking-wide text-amber-400">⛰️ 등반 교육 평가 시스템</h1>
-                <p className="text-[11px] text-slate-400">등반 · 세컨 · 리딩 · 하강 · 보행 채점</p>
+                <h1 className="font-extrabold text-base tracking-wide text-amber-400 flex items-center gap-1.5">
+                  ⛰️ 등반 교육 평가 시스템
+                  {loading && <span className="text-[10px] text-slate-400 font-normal animate-pulse">(DB 동기화 중...)</span>}
+                </h1>
+                <p className="text-[11px] text-slate-400">Supabase DB 실시간 연동</p>
               </div>
               <button 
                 onClick={() => setIsConfig(true)}
@@ -289,7 +328,6 @@
               </button>
             </div>
 
-            {/* 탭 네비게이션 */}
             <div className="flex bg-slate-800 p-1 rounded-xl mt-3 text-xs font-bold">
               <button 
                 onClick={() => setActiveTab('myGroup')}
@@ -312,7 +350,7 @@
             </div>
           </header>
 
-          {/* 메인 콘텐츠 바디 */}
+          {/* 메인 영역 */}
           <main className="p-4 space-y-4">
 
             {/* TAB 1: 내 담당 조 */}
@@ -355,14 +393,14 @@
                                   </div>
                                   {myEval ? (
                                     <div className="flex gap-1 mt-1 text-[10px] font-bold">
-                                      <span className="bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">등반: {myEval.results?.climbingResult}</span>
-                                      <span className="bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">세컨: {myEval.results?.secondBelayResult}</span>
-                                      <span className="bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">리딩: {myEval.results?.leadBelayResult}</span>
-                                      <span className="bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">하강: {myEval.results?.rappellingResult}</span>
-                                      <span className="bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">보행: {myEval.results?.walkingResult}</span>
+                                      <span className="bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">등반:{myEval.results?.climbingResult}</span>
+                                      <span className="bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">세컨:{myEval.results?.secondBelayResult}</span>
+                                      <span className="bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">리딩:{myEval.results?.leadBelayResult}</span>
+                                      <span className="bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">하강:{myEval.results?.rappellingResult}</span>
+                                      <span className="bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">보행:{myEval.results?.walkingResult}</span>
                                     </div>
                                   ) : (
-                                    <div className="text-[10px] text-amber-600 font-semibold mt-1">⚠️ 아직 평가되지 않음 (터치하여 채점)</div>
+                                    <div className="text-[10px] text-amber-600 font-semibold mt-1">⚠️ 아직 채점 전 (터치하여 입력)</div>
                                   )}
                                 </div>
                                 <span className="text-slate-400 text-xs font-bold">채점 &gt;</span>
@@ -410,10 +448,10 @@
                               </div>
 
                               {studentEvs.length > 0 && (
-                                <div className="space-y-1 pt-1 border-t border-slate-200 text-[11px]">
+                                <div className="space-y-1 pt-1 border-t text-[11px]">
                                   {studentEvs.map(([inst, ev]) => (
                                     <div key={inst} className="flex justify-between items-center bg-white p-1.5 rounded border text-slate-700">
-                                      <span className="font-bold text-slate-900">👤 {inst}</span>
+                                      <span className="font-bold">👤 {inst}</span>
                                       <div className="flex gap-1 text-[10px] font-bold">
                                         <span>등반:{ev.results?.climbingResult}</span>
                                         <span>세컨:{ev.results?.secondBelayResult}</span>
@@ -440,56 +478,30 @@
               <div className="space-y-4">
                 {!isAdminAuth ? (
                   <div className="bg-white p-5 rounded-2xl border text-center space-y-3 shadow-sm">
-                    <h3 className="font-bold text-sm text-slate-800">🔒 관리자 인증이 필요합니다</h3>
+                    <h3 className="font-bold text-sm text-slate-800">🔒 관리자 로그인</h3>
                     <input 
                       type="password" 
-                      placeholder="비밀번호 (기본: 1234)" 
+                      placeholder="비밀번호 입력 (1234)" 
                       value={adminInput}
                       onChange={e => setAdminInput(e.target.value)}
                       className="w-full p-2.5 border rounded-xl text-sm text-center"
                     />
                     <button onClick={handleAdminAuth} className="w-full bg-indigo-600 text-white font-bold py-2.5 rounded-xl text-sm">
-                      관리자 로그인
+                      인증하기
                     </button>
                   </div>
                 ) : (
                   <div className="space-y-5">
-                    {/* 상단 버튼 */}
                     <div className="flex justify-between items-center border-b pb-2">
-                      <h3 className="font-bold text-sm text-slate-800">⚙️ 시스템 현황 & 조 관리</h3>
+                      <h3 className="font-bold text-sm text-slate-800">⚙️ Supabase 관리자 설정</h3>
                       <button onClick={handleSaveAdminData} className="bg-emerald-600 text-white font-bold text-xs px-3 py-2 rounded-xl shadow">
-                        변경사항 전체 저장
+                        변경사항 DB 저장
                       </button>
                     </div>
 
-                    {/* 조 생성 */}
+                    {/* 조별 담당 강사 지정 */}
                     <div className="bg-white p-3.5 rounded-xl border space-y-3 shadow-sm">
-                      <div className="font-bold text-xs text-indigo-900">1. 조 생성 및 관리</div>
-                      <div className="flex gap-2">
-                        <input 
-                          type="text" 
-                          placeholder="새 조 이름 (예: D조)" 
-                          value={newGroupName} 
-                          onChange={e => setNewGroupName(e.target.value)}
-                          className="flex-1 p-2 border rounded-xl text-xs"
-                        />
-                        <button onClick={handleAddGroup} className="bg-slate-900 text-white text-xs px-3 py-2 rounded-xl font-bold">
-                          + 추가
-                        </button>
-                      </div>
-                      <div className="flex flex-wrap gap-2 pt-1">
-                        {groups.map(g => (
-                          <div key={g} className="flex items-center gap-1 bg-slate-100 border px-2.5 py-1.5 rounded-lg text-xs font-bold text-slate-700">
-                            <span>{g}</span>
-                            <button onClick={() => handleDeleteGroup(g)} className="text-slate-400 hover:text-red-500 ml-1">✕</button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* 조별 강사 지정 */}
-                    <div className="bg-white p-3.5 rounded-xl border space-y-3 shadow-sm">
-                      <div className="font-bold text-xs text-indigo-900">2. 조별 담당 강사 지정</div>
+                      <div className="font-bold text-xs text-indigo-900">1. 조별 담당 강사 매핑</div>
                       <div className="space-y-2">
                         {groups.map(g => (
                           <div key={g} className="flex justify-between items-center bg-slate-50 p-2 rounded-lg border text-xs">
@@ -511,7 +523,7 @@
 
                     {/* 교육생 조 배정 */}
                     <div className="bg-white p-3.5 rounded-xl border space-y-3 shadow-sm">
-                      <div className="font-bold text-xs text-indigo-900">3. 교육생 조 배정</div>
+                      <div className="font-bold text-xs text-indigo-900">2. 교육생 조 배정</div>
                       <div className="space-y-2">
                         {students.map(s => (
                           <div key={s.id} className="flex justify-between items-center bg-slate-50 p-2 rounded-lg border text-xs">
@@ -537,12 +549,12 @@
 
           </main>
 
-          {/* 강사 이름 입력 모달 */}
+          {/* 강사명 설정 모달 */}
           {isConfig && (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
               <div className="bg-white rounded-2xl p-5 w-full max-w-xs space-y-4 shadow-2xl">
                 <h3 className="font-bold text-base text-slate-800 text-center">👤 강사 성함 설정</h3>
-                <p className="text-xs text-slate-500 text-center">채점 기록을 남기기 위해 성함을 입력해주세요.</p>
+                <p className="text-xs text-slate-500 text-center">DB 기록을 위해 채점자 성함을 입력해 주세요.</p>
                 <input 
                   type="text" 
                   placeholder="예: 홍길동" 
@@ -551,18 +563,17 @@
                   className="w-full p-2.5 border rounded-xl text-sm text-center font-bold"
                 />
                 <button onClick={handleSaveInstructorName} className="w-full bg-slate-900 text-white font-bold py-2.5 rounded-xl text-sm">
-                  확인 및 시작
+                  확인 및 DB 연결
                 </button>
               </div>
             </div>
           )}
 
-          {/* 교육생 채점 및 상세 모달 */}
+          {/* 교육생 채점 모달 */}
           {selectedStudent && (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 flex items-end sm:items-center justify-center p-0 sm:p-4">
               <div className="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-5 space-y-4 shadow-2xl">
                 
-                {/* 모달 헤더 */}
                 <div className="flex justify-between items-center border-b pb-3">
                   <div>
                     <h3 className="font-extrabold text-base text-slate-800 flex items-center gap-2">
@@ -576,7 +587,6 @@
                   <button onClick={() => setSelectedStudent(null)} className="text-slate-400 text-xl font-bold p-1">✕</button>
                 </div>
 
-                {/* 모달 탭 */}
                 <div className="flex border-b text-xs font-bold">
                   <button 
                     onClick={() => setModalTab('myScore')} 
@@ -588,21 +598,20 @@
                     onClick={() => setModalTab('allScores')} 
                     className={`flex-1 py-2 text-center ${modalTab === 'allScores' ? 'border-b-2 border-amber-500 text-amber-600 font-extrabold' : 'text-slate-400'}`}
                   >
-                    전체 강사 채점
+                    전체 강사 기록
                   </button>
                 </div>
 
-                {/* TAB 1: 내 채점 입력 (신규 체계 반영) */}
+                {/* 내 채점 입력 (개편된 5개 항목 반영) */}
                 {modalTab === 'myScore' && (
                   <div className="space-y-5 pt-1">
                     {Object.entries(EVAL_STRUCTURE).map(([categoryKey, category]) => (
                       <div key={categoryKey} className="bg-slate-50 p-3.5 rounded-xl border space-y-3">
                         <div className="font-extrabold text-xs text-slate-900 border-b pb-1.5 flex justify-between items-center">
                           <span>{category.title}</span>
-                          <span className="text-[10px] font-normal text-slate-400">최종 평가</span>
+                          <span className="text-[10px] font-normal text-slate-400">결과 평가</span>
                         </div>
 
-                        {/* 세부 평가 세트 */}
                         {category.subFields.length > 0 && (
                           <div className="space-y-2">
                             {category.subFields.map(sub => {
@@ -649,7 +658,6 @@
                           </div>
                         )}
 
-                        {/* 영역별 최종 결과 선택 (H / M / L) */}
                         <div className="pt-2 border-t flex justify-between items-center bg-amber-50/60 p-2 rounded-lg border border-amber-200">
                           <span className="text-xs font-bold text-amber-900">결과 (H / M / L)</span>
                           <div className="flex gap-1.5">
@@ -675,12 +683,11 @@
                       </div>
                     ))}
 
-                    {/* 종합 특이사항 메모 */}
                     <div>
                       <label className="text-xs font-bold text-slate-700 block mb-1">관찰 메모 & 특이사항</label>
                       <textarea 
                         rows="2" 
-                        placeholder="강점, 보완점, 신체적 특이사항 등..."
+                        placeholder="특이사항이나 강점/보완점 입력..."
                         value={evalNote}
                         onChange={e => setEvalNote(e.target.value)}
                         className="w-full p-2.5 border rounded-xl text-xs bg-slate-50"
@@ -691,12 +698,12 @@
                       onClick={handleSaveEval} 
                       className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-black py-3 rounded-xl text-sm shadow-md transition-all"
                     >
-                      평가 저장하기
+                      Supabase DB에 평가 저장
                     </button>
                   </div>
                 )}
 
-                {/* TAB 2: 전체 강사 기록 */}
+                {/* 전체 강사 평가 기록 */}
                 {modalTab === 'allScores' && (
                   <div className="space-y-3 pt-1">
                     {Object.keys(evaluations[selectedStudent.id] || {}).length === 0 ? (
