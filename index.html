@@ -49,7 +49,7 @@
       { key: 'sb_lowering', label: '하강', type: 'PF' },
     ]
   },
-  leadBelay: {
+  leadingBelay: {
     title: '🧗‍♂️ 3. 리딩빌레이',
     subFields: [
       { key: 'lb_deviceSetup', label: '디바이스 설치', type: 'PF' },
@@ -98,38 +98,27 @@ const RATING_SCORES = { 'H': 3, 'M': 2, 'L': 1, 'P': 3, 'F': 1 };
 
 
     // 1. App 컴포넌트 맨 위(또는 App 바깥 상단)에 정의를 놓습니다.
-const calculateGradeFromDetails = (details, keys) => {
-  if (!details || !keys || keys.length === 0) return { grade: '-', score: 0 };
 
-  let totalItems = 0;
-  let passCount = 0;
+    
+// 1. 항목별 점수 매핑
+const ITEM_SCORES = { 'P': 3, 'H': 3, '상': 3, 'M': 2, '중': 2, 'F': 1, 'L': 1, '하': 1 };
 
+// 2. 세부 항목들의 평균 점수 계산 (1.0 ~ 3.0점)
+const calculateCategoryScore = (details, keys) => {
+  if (!details || !keys || keys.length === 0) return 0;
+  let sum = 0;
+  let count = 0;
   keys.forEach((key) => {
     const val = details[key];
-    if (!val) return; // 평가되지 않은 항목 제외
-
-    totalItems++;
-
-    // Pass(P), 또는 H(상)/M(중) 항목을 Pass 성격으로 인정
-    if (val === 'P' || val === 'Pass' || val === 'H' || val === 'M') {
-      passCount++;
+    if (val && ITEM_SCORES[val]) {
+      sum += ITEM_SCORES[val];
+      count++;
     }
   });
-
-  // 평가된 항목이 없을 때
-  if (totalItems === 0) return { grade: '-', score: 0 };
-
-  // Pass 비율 계산 (0.0 ~ 1.0)
-  const passRatio = passCount / totalItems;
-
-  // 비율에 따른 결과 산출
-  // 80% 이상 Pass -> 상(H) / 50% 이상 Pass -> 중(M) / 그 외 -> 하(L)
-  if (passRatio >= 0.8) return { grade: 'H', score: 3 };
-  if (passRatio >= 0.5) return { grade: 'M', score: 2 };
-  return { grade: 'L', score: 1 };
+  return count > 0 ? sum / count : 0;
 };
-    
 
+// 3. 점수를 H / M / L 등급으로 변환
 const scoreToGrade = (score) => {
   const num = Number(score);
   if (num >= 2.5) return 'H';
@@ -283,52 +272,62 @@ const CATEGORY_KEYS = {
       };
 
       const handleManualSave = async () => {
-        if (!selectedStudent || !instructorName) return;
-        setSaving(true);
+  if (!selectedStudent || !instructorName) return;
+  setSaving(true);
 
-        const payload = {
-          student_id: selectedStudent.id,
-          instructor_name: instructorName,
+  // 세부 항목 입력값 기반으로 과목별 점수 자동 산출
+  const cScore = calculateCategoryScore(evalDetails, CATEGORY_KEYS.climbing) || 2;
+  const sbScore = calculateCategoryScore(evalDetails, CATEGORY_KEYS.secondBelay) || 2;
+  const lbScore = calculateCategoryScore(evalDetails, CATEGORY_KEYS.leadingBelay) || 2;
+  const rpScore = calculateCategoryScore(evalDetails, CATEGORY_KEYS.rappelling) || 2;
+  
+  // 보행 결과 (선택한 H/M/L)
+  const wVal = evalResults.walkingResult || 'M';
+  const wScore = ITEM_SCORES[wVal] || 2;
+
+  const payload = {
+    student_id: selectedStudent.id,
+    instructor_name: instructorName,
+    details: evalDetails,
+    results: evalResults,
+    note: evalNote,
+    climbing_score: Number(cScore.toFixed(2)),
+    second_belay_score: Number(sbScore.toFixed(2)),
+    leading_belay_score: Number(lbScore.toFixed(2)),
+    rappelling_score: Number(rpScore.toFixed(2)),
+    walking_score: wScore,
+    updated_at: new Date().toISOString()
+  };
+
+  try {
+    const { error } = await supabase
+      .from('evaluations')
+      .upsert(payload, { onConflict: 'student_id,instructor_name' });
+
+    if (error) throw error;
+
+    setEvaluations(prev => ({
+      ...prev,
+      [selectedStudent.id]: {
+        ...(prev[selectedStudent.id] || {}),
+        [instructorName]: {
           details: evalDetails,
           results: evalResults,
           note: evalNote,
-          climbing_score: RATING_SCORES[evalResults.climbingResult] || 2,
-          second_belay_score: RATING_SCORES[evalResults.secondBelayResult] || 2,
-          leading_belay_score: RATING_SCORES[evalResults.leadBelayResult] || 2,
-          rappelling_score: RATING_SCORES[evalResults.rappellingResult] || 2,
-          walking_score: RATING_SCORES[evalResults.walkingResult] || 2,
-          updated_at: new Date().toISOString()
-        };
-
-        try {
-          const { error } = await supabase
-            .from('evaluations')
-            .upsert(payload, { onConflict: 'student_id,instructor_name' });
-
-          if (error) throw error;
-
-          setEvaluations(prev => ({
-            ...prev,
-            [selectedStudent.id]: {
-              ...(prev[selectedStudent.id] || {}),
-              [instructorName]: {
-                details: evalDetails,
-                results: evalResults,
-                note: evalNote,
-                updatedAt: payload.updated_at
-              }
-            }
-          }));
-
-          alert('평가가 성공적으로 저장되었습니다.');
-          setSelectedStudent(null);
-        } catch (err) {
-          console.error("저장 실패:", err);
-          alert('저장 실패: ' + err.message);
-        } finally {
-          setSaving(false);
+          updatedAt: payload.updated_at
         }
-      };
+      }
+    }));
+
+    alert('평가가 성공적으로 저장되었습니다.');
+    setSelectedStudent(null);
+  } catch (err) {
+    console.error("저장 실패:", err);
+    alert('저장 실패: ' + err.message);
+  } finally {
+    setSaving(false);
+  }
+};
 
       
       const handleAdminAuth = () => {
@@ -671,7 +670,7 @@ const CATEGORY_KEYS = {
                                       <div className="flex gap-1 text-[10px] font-bold">
                                         <span>등반:{ev.results?.climbingResult || '-'}</span>
                                         <span>세컨:{ev.results?.secondBelayResult || '-'}</span>
-                                        <span>리딩:{ev.results?.leadBelayResult || '-'}</span>
+                                        <span>리딩:{ev.results?.leadingBelayResult || '-'}</span>
                                         <span>하강:{ev.results?.rappellingResult || '-'}</span>
                                         <span>보행:{ev.results?.walkingResult || '-'}</span>
                                       </div>
@@ -708,59 +707,65 @@ const renderGrade = (grade) => {
 
 
   // 2. 학생 데이터 집계 및 계산
-  const calculatedList = (students || [])
-    .map((student) => {
-      const studentId = student.id || student.student_id;
-      const evalData = evaluations?.[studentId];
-      const studentEvals = Array.isArray(evalData)
-        ? evalData
-        : Object.values(evalData || {});
+const calculatedList = (students || [])
+  .map((student) => {
+    const studentId = student.id || student.student_id;
+    const evalData = evaluations?.[studentId];
+    const studentEvals = Array.isArray(evalData)
+      ? evalData
+      : Object.values(evalData || {});
 
-      if (!studentEvals || studentEvals.length === 0) {
-        return {
-          ...student,
-          grades: { climbing: '-', secondBelay: '-', leadingBelay: '-', rappelling: '-', walking: '-' },
-          totalScore: 0,
-          evalCount: 0,
-        };
-      }
-
-      const count = studentEvals.length;
-      let sumClimbing = 0, sumSecond = 0, sumLeading = 0, sumRappelling = 0, sumWalking = 0;
-
-      studentEvals.forEach((evalItem) => {
-        const details = evalItem.details || {};
-        sumClimbing += calculateGradeFromDetails(details, CATEGORY_KEYS.climbing).score;
-        sumSecond += calculateGradeFromDetails(details, CATEGORY_KEYS.secondBelay).score;
-        sumLeading += calculateGradeFromDetails(details, CATEGORY_KEYS.leadingBelay).score;
-        sumRappelling += calculateGradeFromDetails(details, CATEGORY_KEYS.rappelling).score;
-        sumWalking += Number(evalItem.walking_score) || 1;
-      });
-
-      const avgClimbing = (sumClimbing / count).toFixed(1);
-      const avgSecond = (sumSecond / count).toFixed(1);
-      const avgLeading = (sumLeading / count).toFixed(1);
-      const avgRappelling = (sumRappelling / count).toFixed(1);
-      const avgWalking = (sumWalking / count).toFixed(1);
-
-      const totalScore = Number(
-        ((Number(avgClimbing) + Number(avgSecond) + Number(avgLeading) + Number(avgRappelling) + Number(avgWalking)) / 5).toFixed(1)
-      );
-
+    if (!studentEvals || studentEvals.length === 0) {
       return {
         ...student,
-        grades: {
-          climbing: scoreToGrade(avgClimbing),
-          secondBelay: scoreToGrade(avgSecond),
-          leadingBelay: scoreToGrade(avgLeading),
-          rappelling: scoreToGrade(avgRappelling),
-          walking: scoreToGrade(avgWalking),
-        },
-        totalScore,
-        evalCount: count,
+        grades: { climbing: '-', secondBelay: '-', leadingBelay: '-', rappelling: '-', walking: '-' },
+        totalScore: 0,
+        evalCount: 0,
       };
-    })
-    .sort((a, b) => b.totalScore - a.totalScore);
+    }
+
+    const count = studentEvals.length;
+    let sumClimbing = 0, sumSecond = 0, sumLeading = 0, sumRappelling = 0, sumWalking = 0;
+
+    studentEvals.forEach((evalItem) => {
+      const details = evalItem.details || {};
+      const results = evalItem.results || {};
+
+      // DB 저장이 안 된 이전 데이터라도 details에서 실시간 계산
+      sumClimbing += evalItem.climbing_score || calculateCategoryScore(details, CATEGORY_KEYS.climbing);
+      sumSecond += evalItem.second_belay_score || calculateCategoryScore(details, CATEGORY_KEYS.secondBelay);
+      sumLeading += evalItem.leading_belay_score || calculateCategoryScore(details, CATEGORY_KEYS.leadingBelay);
+      sumRappelling += evalItem.rappelling_score || calculateCategoryScore(details, CATEGORY_KEYS.rappelling);
+      
+      const wVal = results.walkingResult || evalItem.walkingResult;
+      sumWalking += evalItem.walking_score || (wVal ? ITEM_SCORES[wVal] : 0);
+    });
+
+    const avgClimbing = sumClimbing / count;
+    const avgSecond = sumSecond / count;
+    const avgLeading = sumLeading / count;
+    const avgRappelling = sumRappelling / count;
+    const avgWalking = sumWalking / count;
+
+    // 5개 과목의 평균 점수 계산
+    const totalScore = Number(
+      ((avgClimbing + avgSecond + avgLeading + avgRappelling + avgWalking) / 5).toFixed(1)
+    );
+
+    return {
+      ...student,
+      grades: {
+        climbing: scoreToGrade(avgClimbing),
+        secondBelay: scoreToGrade(avgSecond),
+        leadingBelay: scoreToGrade(avgLeading),
+        rappelling: scoreToGrade(avgRappelling),
+        walking: scoreToGrade(avgWalking),
+      },
+      totalScore,
+      evalCount: count,
+    };
+  })
+  .sort((a, b) => b.totalScore - a.totalScore);
 
   // 3. UI 렌더링
   return (
