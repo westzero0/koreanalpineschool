@@ -28,48 +28,49 @@
     const SUPABASE_ANON_KEY = 'sb_publishable_0qx2MvW4AsHrQeHrK7OmzA_kcxFr9yi';
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    // [수정 1] subFields의 key 값들을 모두 고유한 이름으로 변경하여 중복 선택 현상 방지
     const EVAL_STRUCTURE = {
       climbing: {
         title: '🧗 1. 등반',
         subFields: [
-          { key: 'beltKnot', label: '벨트매듭', type: 'PF' },
-          { key: 'footWork', label: '발사용', type: 'HML' },
-          { key: 'handWork', label: '손사용', type: 'HML' },
-          { key: 'stability', label: '안정성', type: 'HML' },
-          { key: 'composure', label: '여유', type: 'HML' },
+          { key: 'climb_beltKnot', label: '벨트매듭', type: 'PF' },
+          { key: 'climb_footWork', label: '발사용', type: 'HML' },
+          { key: 'climb_handWork', label: '손사용', type: 'HML' },
+          { key: 'climb_stability', label: '안정성', type: 'HML' },
+          { key: 'climb_composure', label: '여유', type: 'HML' },
         ],
         resultKey: 'climbingResult'
       },
       secondBelay: {
         title: '⚓ 2. 세컨 빌레이',
         subFields: [
-          { key: 'anchorSetup', label: '지점 세팅', type: 'PF' },
-          { key: 'deviceSetup', label: '설치', type: 'PF' },
-          { key: 'ropePull', label: '줄당기기', type: 'PF' },
-          { key: 'ropeManage', label: '로프정리', type: 'PF' },
-          { key: 'lowering', label: '하강', type: 'PF' },
+          { key: 'sb_anchorSetup', label: '지점 세팅', type: 'PF' },
+          { key: 'sb_deviceSetup', label: '설치', type: 'PF' },
+          { key: 'sb_ropePull', label: '줄당기기', type: 'PF' },
+          { key: 'sb_ropeManage', label: '로프정리', type: 'PF' },
+          { key: 'sb_lowering', label: '하강', type: 'PF' },
         ],
         resultKey: 'secondBelayResult'
       },
       leadBelay: {
         title: '🧗‍♂️ 3. 리딩빌레이',
         subFields: [
-          { key: 'deviceSetup', label: '디바이스 설치', type: 'PF' },
-          { key: 'shuffle', label: '셔플', type: 'PF' },
-          { key: 'brakeHand', label: '제동손 위치', type: 'PF' },
-          { key: 'stability', label: '안정성', type: 'HML' },
+          { key: 'lb_deviceSetup', label: '디바이스 설치', type: 'PF' },
+          { key: 'lb_shuffle', label: '셔플', type: 'PF' },
+          { key: 'lb_brakeHand', label: '제동손 위치', type: 'PF' },
+          { key: 'lb_stability', label: '안정성', type: 'HML' },
         ],
         resultKey: 'leadBelayResult'
       },
       rappelling: {
         title: '🪢 4. 하강',
         subFields: [
-          { key: 'ropeSetup', label: '로프설치', type: 'PF' },
-          { key: 'ropeFix', label: '로프고정', type: 'PF' },
-          { key: 'harnessConnect', label: '체결', type: 'PF' },
-          { key: 'stopCheck', label: '정지', type: 'PF' },
-          { key: 'ascending', label: '어센딩', type: 'PF' },
-          { key: 'proficiency', label: '능숙도', type: 'PF' },
+          { key: 'rp_ropeSetup', label: '로프설치', type: 'PF' },
+          { key: 'rp_ropeFix', label: '로프고정', type: 'PF' },
+          { key: 'rp_harnessConnect', label: '체결', type: 'PF' },
+          { key: 'rp_stopCheck', label: '정지', type: 'PF' },
+          { key: 'rp_ascending', label: '어센딩', type: 'PF' },
+          { key: 'rp_proficiency', label: '능숙도', type: 'PF' },
         ],
         resultKey: 'rappellingResult'
       },
@@ -80,95 +81,23 @@
       }
     };
 
-    // EVAL_STRUCTURE 키를 DB View 키로 매핑
-  const DB_CATEGORY_MAP = {
-    climbing: 'climbing',
-    secondBelay: 'second_belay',
-    leadBelay: 'leading_belay',
-    rappelling: 'rappelling',
-    walking: 'walking'
-  };
-
-  const RATING_SCORES = { 'H': 3, 'M': 2, 'L': 1, 'P': 3, 'F': 1 };
-
-  // 저장 버튼 클릭 시 실행할 함수
-  const handleSave = async (studentId, instructorName, categoryKey, selections, finalResult) => {
-    if (!studentId || !instructorName) {
-      alert("학생과 강사 정보를 확인해 주세요.");
-      return;
-    }
-
-    const dbCategory = DB_CATEGORY_MAP[categoryKey] || categoryKey;
-    const numericScore = RATING_SCORES[finalResult] || 1;
-
-    // 1. 기존 DB 데이터 조회
-    const { data: existing } = await supabase
-      .from('evaluations')
-      .select('details, results')
-      .eq('student_id', studentId)
-      .eq('instructor_name', instructorName)
-      .maybeSingle();
-
-    const currentDetails = existing?.details || {};
-    const currentResults = existing?.results || {};
-
-    // 2. 현재 과목 영역만 격리하여 업데이트
-    const updatedDetails = {
-      ...currentDetails,
-      [dbCategory]: selections
-    };
-
-    const updatedResults = {
-      ...currentResults,
-      [dbCategory]: finalResult
-    };
-
-    // 3. Payload 생성
-    const payload = {
-      student_id: studentId,
-      instructor_name: instructorName,
-      details: updatedDetails,
-      results: updatedResults,
-      updated_at: new Date().toISOString()
-    };
-
-    if (dbCategory === 'climbing') payload.climbing_score = numericScore;
-    if (dbCategory === 'second_belay') payload.second_belay_score = numericScore;
-    if (dbCategory === 'leading_belay') payload.leading_belay_score = numericScore;
-    if (dbCategory === 'rappelling') payload.rappelling_score = numericScore;
-    if (dbCategory === 'walking') payload.walking_score = numericScore;
-
-    // 4. Supabase Upsert
-    const { error } = await supabase
-      .from('evaluations')
-      .upsert(payload, { onConflict: 'student_id, instructor_name' });
-
-    if (error) {
-      console.error('저장 에러:', error);
-      alert('저장에 실패했습니다.');
-    } else {
-      alert('성공적으로 저장되었습니다.');
-    }
-  };
-    
+    const RATING_SCORES = { 'H': 3, 'M': 2, 'L': 1, 'P': 3, 'F': 1 };
 
     const getSurveyData = (student) => {
-  if (!student || !student.student_surveys) return null;
-  if (Array.isArray(student.student_surveys)) {
-    return student.student_surveys[0] || null;
-  }
-  return student.student_surveys;
-};
-
+      if (!student || !student.student_surveys) return null;
+      if (Array.isArray(student.student_surveys)) {
+        return student.student_surveys[0] || null;
+      }
+      return student.student_surveys;
+    };
     
     function App() {
       const [instructorName, setInstructorName] = useState(() => localStorage.getItem('instructorName') || '');
       const [isConfig, setIsConfig] = useState(!localStorage.getItem('instructorName'));
       const [tempName, setTempName] = useState('');
       
-      // 메인 탭: 'allStudents' (교육생리스트) | 'allGroup' (전체 조 평가) | 'admin' (관리자)
       const [activeTab, setActiveTab] = useState('allStudents');
-      const [isMyGroupOpen, setIsMyGroupOpen] = useState(false); // 오른쪽 스와이프시 펼쳐질 drawer state
+      const [isMyGroupOpen, setIsMyGroupOpen] = useState(false); 
       
       const [loading, setLoading] = useState(true);
       const [savingStatus, setSavingStatus] = useState('');
@@ -186,15 +115,13 @@
       const [editingInstructors, setEditingInstructors] = useState({});
 
       const [selectedStudent, setSelectedStudent] = useState(null);
-      const [modalTab, setModalTab] = useState('score'); // 'score' | 'survey'
+      const [modalTab, setModalTab] = useState('score'); 
 
-  const [evalResults, setEvalResults] = useState({});
-const [evalDetails, setEvalDetails] = useState({});
-
-      
+      const [evalDetails, setEvalDetails] = useState({});
+      // [수정 2] 기본 'M' 할당 제거, 빈 객체로 시작
+      const [evalResults, setEvalResults] = useState({});
       const [evalNote, setEvalNote] = useState('');
 
-      // 터치 제스처 (우측 스와이프 감지)
       const touchStartX = useRef(0);
       const touchEndX = useRef(0);
 
@@ -208,11 +135,9 @@ const [evalDetails, setEvalDetails] = useState({});
 
       const handleTouchEnd = () => {
         const distance = touchEndX.current - touchStartX.current;
-        // 왼쪽 -> 오른쪽 50px 이상 스와이프시 내 담당 조 Drawer 열기
         if (touchStartX.current > 0 && touchEndX.current > 0 && distance > 60) {
           setIsMyGroupOpen(true);
         }
-        // 오른쪽 -> 왼쪽 스와이프시 내 담당 조 Drawer 닫기
         if (touchStartX.current > 0 && touchEndX.current > 0 && distance < -60) {
           setIsMyGroupOpen(false);
         }
@@ -220,68 +145,61 @@ const [evalDetails, setEvalDetails] = useState({});
         touchEndX.current = 0;
       };
 
- const fetchData = async () => {
-  setLoading(true);
-  try {
-    // 1. 그룹 목록 조회 (기존 유지)
-    const { data: grpData } = await supabase.from('groups').select('*');
-    if (grpData && grpData.length > 0) {
-      const sortedGroups = grpData.map(g => g.name).sort((a, b) => (parseInt(a) || 0) - (parseInt(b) || 0));
-      setGroups(sortedGroups);
-    } else {
-      setGroups(['1조', '2조', '3조', '4조', '5조', '6조', '7조', '8조', '9조']);
-    }
+      const fetchData = async () => {
+        setLoading(true);
+        try {
+          const { data: grpData } = await supabase.from('groups').select('*');
+          if (grpData && grpData.length > 0) {
+            const sortedGroups = grpData.map(g => g.name).sort((a, b) => (parseInt(a) || 0) - (parseInt(b) || 0));
+            setGroups(sortedGroups);
+          } else {
+            setGroups(['1조', '2조', '3조', '4조', '5조', '6조', '7조', '8조', '9조']);
+          }
 
-  const { data: stdData, error: stdErr } = await supabase
-  .from('students')
-  .select(`
-    *,
-    student_surveys!fk_student(*)
-  `);
+          const { data: stdData, error: stdErr } = await supabase
+            .from('students')
+            .select('*, student_surveys!fk_student(*)');
 
-if (stdErr) {
-  console.error("students 조회 에러:", stdErr);
-  throw stdErr;
-}
+          if (stdErr) {
+            console.error("students 조회 에러:", stdErr);
+            throw stdErr;
+          }
 
-console.log("불러온 교육생 데이터:", stdData);
-if (stdData) setStudents(stdData);
-    // 3. 강사 목록 조회 (기존 유지)
-    const { data: instData } = await supabase.from('instructors').select('*');
-    if (instData) setInstructorList(instData);
+          if (stdData) setStudents(stdData);
+          
+          const { data: instData } = await supabase.from('instructors').select('*');
+          if (instData) setInstructorList(instData);
 
-    // 4. 조별 담당 강사 조회 (기존 유지)
-    const { data: gmData } = await supabase.from('group_managers').select('*');
-    if (gmData) {
-      const instMap = {};
-      gmData.forEach(gm => {
-        if (gm.group_name && gm.instructor_name) instMap[gm.group_name] = gm.instructor_name;
-      });
-      setGroupInstructors(instMap);
-      setEditingInstructors(instMap);
-    }
+          const { data: gmData } = await supabase.from('group_managers').select('*');
+          if (gmData) {
+            const instMap = {};
+            gmData.forEach(gm => {
+              if (gm.group_name && gm.instructor_name) instMap[gm.group_name] = gm.instructor_name;
+            });
+            setGroupInstructors(instMap);
+            setEditingInstructors(instMap);
+          }
 
-    // 5. 평가 기록 조회 (기존 유지)
-    const { data: evData } = await supabase.from('evaluations').select('*');
-    if (evData) {
-      const evMap = {};
-      evData.forEach(ev => {
-        if (!evMap[ev.student_id]) evMap[ev.student_id] = {};
-        evMap[ev.student_id][ev.instructor_name] = {
-          details: ev.details || {},
-          results: ev.results || {},
-          note: ev.note || '',
-          updatedAt: ev.updated_at
-        };
-      });
-      setEvaluations(evMap);
-    }
-  } catch (err) {
-    console.error("데이터 로딩 오류:", err);
-  } finally {
-    setLoading(false);
-  }
-};
+          const { data: evData } = await supabase.from('evaluations').select('*');
+          if (evData) {
+            const evMap = {};
+            evData.forEach(ev => {
+              if (!evMap[ev.student_id]) evMap[ev.student_id] = {};
+              evMap[ev.student_id][ev.instructor_name] = {
+                details: ev.details || {},
+                results: ev.results || {},
+                note: ev.note || '',
+                updatedAt: ev.updated_at
+              };
+            });
+            setEvaluations(evMap);
+          }
+        } catch (err) {
+          console.error("데이터 로딩 오류:", err);
+        } finally {
+          setLoading(false);
+        }
+      };
 
       useEffect(() => {
         fetchData();
@@ -309,28 +227,17 @@ if (stdData) setStudents(stdData);
         const existingEv = evaluations[student.id]?.[instructorName];
         if (existingEv) {
           setEvalDetails(existingEv.details || {});
-          setEvalResults(existingEv.results || {
-            climbingResult: 'M',
-            secondBelayResult: 'M',
-            leadBelayResult: 'M',
-            rappellingResult: 'M',
-            walkingResult: 'M'
-          });
+          setEvalResults(existingEv.results || {});
           setEvalNote(existingEv.note || '');
         } else {
+          // [수정 2-1] 신규 평가 시에도 'M' 고정값 없이 빈 값으로 시작
           setEvalDetails({});
-          setEvalResults({
-            climbingResult: 'M',
-            secondBelayResult: 'M',
-            leadBelayResult: 'M',
-            rappellingResult: 'M',
-            walkingResult: 'M'
-          });
+          setEvalResults({});
           setEvalNote('');
         }
       };
 
-      // ⚡ 실시간 자동 저장 함수
+      // [수정 3] 실시간 저장 함수(autoSaveEval)에 score 데이터 연산 포함
       const autoSaveEval = async (updatedDetails, updatedResults, updatedNote) => {
         if (!selectedStudent || !instructorName) return;
         setSavingStatus('저장 중...');
@@ -341,6 +248,11 @@ if (stdData) setStudents(stdData);
           details: updatedDetails,
           results: updatedResults,
           note: updatedNote,
+          climbing_score: RATING_SCORES[updatedResults.climbingResult] || null,
+          second_belay_score: RATING_SCORES[updatedResults.secondBelayResult] || null,
+          leading_belay_score: RATING_SCORES[updatedResults.leadBelayResult] || null,
+          rappelling_score: RATING_SCORES[updatedResults.rappellingResult] || null,
+          walking_score: RATING_SCORES[updatedResults.walkingResult] || null,
           updated_at: new Date().toISOString()
         };
 
@@ -352,7 +264,6 @@ if (stdData) setStudents(stdData);
           if (error) throw error;
           setSavingStatus('저장됨 ✓');
 
-          // 로컬 상태 동기화
           setEvaluations(prev => ({
             ...prev,
             [selectedStudent.id]: {
@@ -441,7 +352,6 @@ if (stdData) setStudents(stdData);
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         >
-          {/* 상단 헤더 */}
           <header className="bg-slate-900 text-white p-4 sticky top-0 z-30 shadow-md">
             <div className="flex justify-between items-center">
               <div>
@@ -459,7 +369,6 @@ if (stdData) setStudents(stdData);
               </button>
             </div>
 
-            {/* 메인 탭 순서: 교육생리스트 -> 전체 조 평가 -> 관리자 */}
             <div className="flex bg-slate-800 p-1 rounded-xl mt-3 text-xs font-bold">
               <button 
                 onClick={() => setActiveTab('allStudents')}
@@ -483,10 +392,8 @@ if (stdData) setStudents(stdData);
           </header>
 
           <main className="p-4 space-y-4">
-            {/* TAB 1: 첫 페이지 - 전체 교육생 리스트 */}
             {activeTab === 'allStudents' && (
               <div className="space-y-3">
-                {/* 검색창 */}
                 <div className="relative">
                   <input 
                     type="text" 
@@ -501,73 +408,69 @@ if (stdData) setStudents(stdData);
                   )}
                 </div>
 
-                {/* 학생 카드 목록 */}
-             {/* 학생 카드 목록 */}
-<div className="space-y-2.5">
-  {filteredStudents.length === 0 ? (
-    <div className="bg-white p-8 rounded-2xl text-center text-slate-400 text-xs border">
-      검색 결과가 없습니다.
-    </div>
-  ) : (
-    filteredStudents.map(s => {
-      // 헬퍼 함수로 survey 데이터 추출
-      const survey = getSurveyData(s);
-      const myEval = evaluations[s.id]?.[instructorName];
+                <div className="space-y-2.5">
+                  {filteredStudents.length === 0 ? (
+                    <div className="bg-white p-8 rounded-2xl text-center text-slate-400 text-xs border">
+                      검색 결과가 없습니다.
+                    </div>
+                  ) : (
+                    filteredStudents.map(s => {
+                      const survey = getSurveyData(s);
+                      const myEval = evaluations[s.id]?.[instructorName];
 
-      return (
-        <div 
-          key={s.id} 
-          onClick={() => handleOpenStudentModal(s)}
-          className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between cursor-pointer hover:border-amber-400 transition-all active:scale-[0.99]"
-        >
-          <div className="flex items-center gap-3">
-            {s.photo_url ? (
-              <img src={s.photo_url} alt={s.name} className="w-12 h-12 rounded-xl object-cover border border-slate-100" />
-            ) : (
-              <div className="w-12 h-12 rounded-xl bg-slate-100 border flex items-center justify-center text-xl font-bold text-slate-400">
-                {s.name ? s.name[0] : '👤'}
+                      return (
+                        <div 
+                          key={s.id} 
+                          onClick={() => handleOpenStudentModal(s)}
+                          className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between cursor-pointer hover:border-amber-400 transition-all active:scale-[0.99]"
+                        >
+                          <div className="flex items-center gap-3">
+                            {s.photo_url ? (
+                              <img src={s.photo_url} alt={s.name} className="w-12 h-12 rounded-xl object-cover border border-slate-100" />
+                            ) : (
+                              <div className="w-12 h-12 rounded-xl bg-slate-100 border flex items-center justify-center text-xl font-bold text-slate-400">
+                                {s.name ? s.name[0] : '👤'}
+                              </div>
+                            )}
+
+                            <div className="space-y-0.5">
+                              <div className="flex items-center gap-2">
+                                <span className="font-extrabold text-sm text-slate-800">{s.name}</span>
+                                <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold">
+                                  {s.group_name || '조 미정'}
+                                </span>
+                              </div>
+
+                              <div className="text-[11px] text-slate-500">
+                                {s.age ? `만 ${s.age}세` : '나이미상'} · {s.gender || '성별미상'}
+                              </div>
+
+                              <div className="text-[10px] text-slate-400 line-clamp-1">
+                                🧗 경력: {survey?.climbing_exp || s.climbing_exp || '미입력'}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="text-right flex flex-col items-end gap-1">
+                            {myEval ? (
+                              <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
+                                채점완료 ✓
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 rounded-full">
+                                채점대기
+                              </span>
+                            )}
+                            <span className="text-slate-300 text-xs font-bold">&gt;</span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
               </div>
             )}
 
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-sm text-slate-800">{s.name}</span>
-                <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold">
-                  {s.group_name || '조 미정'}
-                </span>
-              </div>
-
-              <div className="text-[11px] text-slate-500">
-                {s.age ? `만 ${s.age}세` : '나이미상'} · {s.gender || '성별미상'}
-              </div>
-
-              <div className="text-[10px] text-slate-400 line-clamp-1">
-                🧗 경력: {survey?.climbing_exp || s.climbing_exp || '미입력'}
-              </div>
-            </div>
-          </div>
-
-          <div className="text-right flex flex-col items-end gap-1">
-            {myEval ? (
-              <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
-                채점완료 ✓
-              </span>
-            ) : (
-              <span className="text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 rounded-full">
-                채점대기
-              </span>
-            )}
-            <span className="text-slate-300 text-xs font-bold">&gt;</span>
-          </div>
-        </div>
-      );
-    })
-  )}
-</div>
-              </div>
-            )}
-
-            {/* TAB 2: 전체 조 평가 */}
             {activeTab === 'allGroup' && (
               <div className="space-y-4">
                 {groups.map(grp => {
@@ -605,11 +508,11 @@ if (stdData) setStudents(stdData);
                                     <div key={inst} className="flex justify-between items-center bg-white p-1.5 rounded border text-slate-700">
                                       <span className="font-bold">👤 {inst}</span>
                                       <div className="flex gap-1 text-[10px] font-bold">
-                                        <span>등반:{ev.results?.climbingResult}</span>
-                                        <span>세컨:{ev.results?.secondBelayResult}</span>
-                                        <span>리딩:{ev.results?.leadBelayResult}</span>
-                                        <span>하강:{ev.results?.rappellingResult}</span>
-                                        <span>보행:{ev.results?.walkingResult}</span>
+                                        <span>등반:{ev.results?.climbingResult || '-'}</span>
+                                        <span>세컨:{ev.results?.secondBelayResult || '-'}</span>
+                                        <span>리딩:{ev.results?.leadBelayResult || '-'}</span>
+                                        <span>하강:{ev.results?.rappellingResult || '-'}</span>
+                                        <span>보행:{ev.results?.walkingResult || '-'}</span>
                                       </div>
                                     </div>
                                   ))}
@@ -625,7 +528,6 @@ if (stdData) setStudents(stdData);
               </div>
             )}
 
-            {/* TAB 3: 관리자 페이지 */}
             {activeTab === 'admin' && (
               <div className="space-y-4">
                 {!isAdminAuth ? (
@@ -724,7 +626,6 @@ if (stdData) setStudents(stdData);
             )}
           </main>
 
-          {/* 👈 오른쪽 스와이프 시 나타나는 [내 담당 조] Drawer Panel */}
           <div className={`fixed inset-y-0 left-0 z-40 w-80 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out border-r ${isMyGroupOpen ? 'translate-x-0' : '-translate-x-full'}`}>
             <div className="p-4 bg-slate-900 text-white flex justify-between items-center">
               <div>
@@ -759,7 +660,7 @@ if (stdData) setStudents(stdData);
                               key={s.id} 
                               onClick={() => {
                                 handleOpenStudentModal(s);
-                                setIsMyGroupOpen(false); // 모달 오픈시 Drawer 닫기
+                                setIsMyGroupOpen(false); 
                               }}
                               className="bg-white p-2.5 rounded-xl border flex items-center justify-between cursor-pointer hover:bg-amber-50/50"
                             >
@@ -788,12 +689,10 @@ if (stdData) setStudents(stdData);
             </div>
           </div>
 
-          {/* Drawer 가림막 Backdrop */}
           {isMyGroupOpen && (
             <div onClick={() => setIsMyGroupOpen(false)} className="fixed inset-0 bg-black/40 z-30 transition-opacity"></div>
           )}
 
-          {/* 강사 설정 모달 */}
           {isConfig && (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
               <div className="bg-white rounded-2xl p-5 w-full max-w-xs space-y-4 shadow-2xl">
@@ -813,7 +712,6 @@ if (stdData) setStudents(stdData);
             </div>
           )}
 
-          {/* 📌 교육생 상세 모달 (요청사항: 2개 탭 - [평가], [사전 설문]) */}
           {selectedStudent && (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
               <div className="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-5 space-y-4 shadow-2xl">
@@ -842,7 +740,6 @@ if (stdData) setStudents(stdData);
                   <button onClick={() => setSelectedStudent(null)} className="text-slate-400 text-xl font-bold p-1">✕</button>
                 </div>
 
-                {/* 요청사항 1-1: 2개 탭으로 수정 */}
                 <div className="flex border-b text-xs font-bold">
                   <button 
                     onClick={() => setModalTab('score')} 
@@ -857,191 +754,172 @@ if (stdData) setStudents(stdData);
                     📋 사전 설문
                   </button>
                 </div>
-{/* MODAL TAB 1: 평가 */}
-{modalTab === 'score' && (
-  <div className="space-y-4 pt-1">
-    <div className="flex justify-between items-center text-xs">
-      <span className="text-slate-400">평가 입력 후 하단 [저장하기] 버튼을 클릭하세요.</span>
-      {savingStatus && (
-        <span className={`font-bold text-[11px] ${savingStatus.includes('실패') ? 'text-red-500' : 'text-emerald-600 animate-pulse'}`}>
-          {savingStatus}
-        </span>
-      )}
-    </div>
 
-    {/* 평가 카테고리 반복 */}
-    {Object.entries(EVAL_STRUCTURE).map(([categoryKey, category]) => {
-      // 카테고리별 결과값 (기본값 빈 문자열 처리)
-      const currentCategoryResult = evalResults[category.resultKey] || '';
+                {modalTab === 'score' && (
+                  <div className="space-y-4 pt-1">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-400">평가 입력 시 자동 저장됩니다.</span>
+                      {savingStatus && (
+                        <span className={`font-bold text-[11px] ${savingStatus.includes('실패') ? 'text-red-500' : 'text-emerald-600 animate-pulse'}`}>
+                          {savingStatus}
+                        </span>
+                      )}
+                    </div>
 
-      return (
-        <div key={categoryKey} className="bg-slate-50 p-3.5 rounded-xl border space-y-3">
-          <div className="font-extrabold text-xs text-slate-900 border-b pb-1.5 flex justify-between items-center">
-            <span>{category.title}</span>
-            <span className="text-[10px] font-normal text-slate-400">결과 평가</span>
-          </div>
+                    {Object.entries(EVAL_STRUCTURE).map(([categoryKey, category]) => (
+                      <div key={categoryKey} className="bg-slate-50 p-3.5 rounded-xl border space-y-3">
+                        <div className="font-extrabold text-xs text-slate-900 border-b pb-1.5 flex justify-between items-center">
+                          <span>{category.title}</span>
+                          <span className="text-[10px] font-normal text-slate-400">결과 평가</span>
+                        </div>
 
-          {/* 세부 항목 List */}
-          {category.subFields && category.subFields.length > 0 && (
-            <div className="space-y-2">
-              {category.subFields.map(sub => {
-                // 고유 sub.key로 상태값을 개별 참조
-                const subValue = evalDetails[sub.key] || '';
-                
-                return (
-                  <div key={sub.key} className="flex justify-between items-center text-xs">
-                    <span className="text-slate-600 font-medium">{sub.label}</span>
-                    {sub.type === 'PF' ? (
-                      <div className="flex gap-1">
-                        {['P', 'F'].map(opt => (
-                          <button
-                            key={`${sub.key}-${opt}`}
-                            type="button"
-                            onClick={() => handleSubFieldChange(sub.key, opt)}
-                            className={`px-2.5 py-1 rounded text-[11px] font-bold border transition-all ${
-                              subValue === opt 
-                                ? (opt === 'P' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-red-600 text-white border-red-600') 
-                                : 'bg-white text-slate-500 border-slate-200'
-                            }`}
-                          >
-                            {opt === 'P' ? 'Pass' : 'Fail'}
-                          </button>
-                        ))}
+                        {category.subFields.length > 0 && (
+                          <div className="space-y-2">
+                            {category.subFields.map(sub => {
+                              const val = evalDetails[sub.key] || '';
+                              return (
+                                <div key={sub.key} className="flex justify-between items-center text-xs">
+                                  <span className="text-slate-600 font-medium">{sub.label}</span>
+                                  {sub.type === 'PF' ? (
+                                    <div className="flex gap-1">
+                                      {['P', 'F'].map(opt => (
+                                        <button
+                                          key={opt}
+                                          type="button"
+                                          onClick={() => handleSubFieldChange(sub.key, opt)}
+                                          className={`px-2.5 py-1 rounded text-[11px] font-bold border transition-all ${
+                                            val === opt 
+                                              ? (opt === 'P' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-red-600 text-white border-red-600') 
+                                              : 'bg-white text-slate-500 border-slate-200'
+                                          }`}
+                                        >
+                                          {opt === 'P' ? 'Pass' : 'Fail'}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <div className="flex gap-1">
+                                      {['L', 'M', 'H'].map(opt => (
+                                        <button
+                                          key={opt}
+                                          type="button"
+                                          onClick={() => handleSubFieldChange(sub.key, opt)}
+                                          className={`px-2.5 py-1 rounded text-[11px] font-bold border transition-all ${
+                                            val === opt ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-500 border-slate-200'
+                                          }`}
+                                        >
+                                          {opt === 'L' ? '하' : opt === 'M' ? '중' : '상'}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        <div className="pt-2 border-t flex justify-between items-center bg-amber-50/60 p-2 rounded-lg border border-amber-200">
+                          <span className="text-xs font-bold text-amber-900">결과 (H / M / L)</span>
+                          <div className="flex gap-1.5">
+                            {['L', 'M', 'H'].map(resOpt => {
+                              const isSelected = evalResults[category.resultKey] === resOpt;
+                              return (
+                                <button
+                                  key={resOpt}
+                                  type="button"
+                                  onClick={() => handleResultChange(category.resultKey, resOpt)}
+                                  className={`px-3 py-1 rounded-lg text-xs font-black border transition-all ${
+                                    isSelected 
+                                      ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-sm scale-105' 
+                                      : 'bg-white text-slate-600 border-slate-200'
+                                  }`}
+                                >
+                                  {resOpt === 'L' ? '하(L)' : resOpt === 'M' ? '중(M)' : '상(H)'}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
                       </div>
-                    ) : (
-                      /* 하, 중, 상 버튼 (고유 키 부여) */
-                      <div className="flex gap-1">
-                        {['L', 'M', 'H'].map(opt => (
-                          <button
-                            key={`${sub.key}-${opt}`}
-                            type="button"
-                            onClick={() => handleSubFieldChange(sub.key, opt)}
-                            className={`px-2.5 py-1 rounded text-[11px] font-bold border transition-all ${
-                              subValue === opt ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-500 border-slate-200'
-                            }`}
-                          >
-                            {opt === 'L' ? '하' : opt === 'M' ? '중' : '상'}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                    ))}
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 block mb-1">관찰 메모 & 특이사항</label>
+                      <textarea 
+                        rows="2" 
+                        placeholder="특이사항이나 강점/보완점 입력..."
+                        value={evalNote}
+                        onChange={handleNoteChange}
+                        onBlur={handleNoteBlur} /* [수정 4] 텍스트 입력 후 칸을 벗어나면 저장됨 */
+                        className="w-full p-2.5 border rounded-xl text-xs bg-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      ></textarea>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-3 border-t mt-4">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedStudent(null)}
+                        className="px-4 py-2 bg-slate-200 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-300 transition-all"
+                      >
+                        닫기
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // [수정 5] 인자 없는 handleSave 에러를 방지하고 autoSaveEval를 명시적 재호출 후 종료
+                          autoSaveEval(evalDetails, evalResults, evalNote);
+                          alert('저장되었습니다.');
+                          setSelectedStudent(null);
+                        }}
+                        className="px-5 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 shadow-md transition-all"
+                      >
+                        저장하기
+                      </button>
+                    </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
+                )}
 
-          {/* 과목 결과 선택 영역 (기본값 없음, 독립 선택) */}
-          <div className="pt-2 border-t flex justify-between items-center bg-amber-50/60 p-2 rounded-lg border border-amber-200">
-            <span className="text-xs font-bold text-amber-900">결과 (H / M / L)</span>
-            <div className="flex gap-1.5">
-              {['L', 'M', 'H'].map(resOpt => {
-                const isSelected = currentCategoryResult === resOpt;
-                return (
-                  <button
-                    key={`${category.resultKey}-${resOpt}`}
-                    type="button"
-                    onClick={() => handleResultChange(category.resultKey, resOpt)}
-                    className={`px-3 py-1 rounded-lg text-xs font-black border transition-all ${
-                      isSelected 
-                        ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-sm scale-105' 
-                        : 'bg-white text-slate-600 border-slate-200'
-                    }`}
-                  >
-                    {resOpt === 'L' ? '하(L)' : resOpt === 'M' ? '중(M)' : '상(H)'}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      );
-    })}
-
-    {/* 특이사항 */}
-    <div>
-      <label className="text-xs font-bold text-slate-700 block mb-1">관찰 메모 & 특이사항</label>
-      <textarea 
-        rows="2" 
-        placeholder="특이사항이나 강점/보완점 입력..."
-        value={evalNote || ''}
-        onChange={handleNoteChange}
-        className="w-full p-2.5 border rounded-xl text-xs bg-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-500"
-      ></textarea>
-    </div>
-
-    {/* 맨 하단 저장하기 / 닫기 버튼 */}
-    <div className="flex justify-end gap-2 pt-3 border-t mt-4">
-      <button
-        type="button"
-        onClick={() => setSelectedStudent && setSelectedStudent(null)}
-        className="px-4 py-2 bg-slate-200 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-300 transition-all"
-      >
-        닫기
-      </button>
-      <button
-        type="button"
-        onClick={() => {
-          // 저장 전 필수 객체 검증 후 저장 함수 호출
-          if (typeof handleSave === 'function') {
-            handleSave();
-          }
-        }}
-        className="px-5 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 shadow-md transition-all"
-      >
-        저장하기
-      </button>
-    </div>
-  </div>
-)}
-                
-
-                {/* MODAL TAB 2: 사전 설문 */}
-            {modalTab === 'survey' && (
-  <div className="space-y-3 pt-1 text-xs">
-    {(() => {
-      // 헬퍼 함수 활용
-      const survey = getSurveyData(selectedStudent);
-
-      if (!survey) {
-        return (
-          <div className="text-center py-8 text-slate-400 bg-slate-50 rounded-xl border border-dashed">
-            등록된 사전 설문 데이터가 없습니다.
-          </div>
-        );
-      }
-
-      return (
-        <div className="space-y-2.5">
-          <div className="bg-slate-50 p-3 rounded-xl border space-y-1">
-            <span className="font-bold text-indigo-900">🧗‍♂️ 등반 경력</span>
-            <p className="text-slate-700 bg-white p-2 rounded border mt-0.5">
-              {survey.climbing_exp || '미입력'}
-            </p>
-          </div>
-
-          <div className="bg-slate-50 p-3 rounded-xl border space-y-1">
-            <span className="font-bold text-indigo-900">🥾 등산 경력 및 빈도</span>
-            <div className="bg-white p-2 rounded border text-slate-700 space-y-1 mt-0.5">
-              <div><b>등산 경력:</b> {survey.hiking_exp || '미입력'}</div>
-              <div><b>등반 빈도:</b> {survey.climbing_freq || '미입력'}</div>
-              <div><b>최고 난이도:</b> {survey.climbing_grade || '미입력'}</div>
-            </div>
-          </div>
-
-          <div className="bg-slate-50 p-3 rounded-xl border space-y-1">
-            <span className="font-bold text-indigo-900">⚓ 빌레이 및 매듭 기술</span>
-            <div className="bg-white p-2 rounded border text-slate-700 space-y-1 mt-0.5">
-              <div><b>후등 빌레이:</b> {survey.belay_follow || '미입력'}</div>
-              <div><b>선등 빌레이:</b> {survey.belay_lead || '미입력'}</div>
-              <div><b>매듭 수행:</b> {survey.knot_skill || '미입력'}</div>
-            </div>
-          </div>
-        </div>
-      );
-    })()}
-  </div>
-)}
+                {modalTab === 'survey' && (
+                  <div className="space-y-3 pt-1 text-xs">
+                    {(() => {
+                      const survey = getSurveyData(selectedStudent);
+                      if (!survey) {
+                        return (
+                          <div className="text-center py-8 text-slate-400 bg-slate-50 rounded-xl border border-dashed">
+                            등록된 사전 설문 데이터가 없습니다.
+                          </div>
+                        );
+                      }
+                      return (
+                        <div className="space-y-2.5">
+                          <div className="bg-slate-50 p-3 rounded-xl border space-y-1">
+                            <span className="font-bold text-indigo-900">🧗‍♂️ 등반 경력</span>
+                            <p className="text-slate-700 bg-white p-2 rounded border mt-0.5">
+                              {survey.climbing_exp || '미입력'}
+                            </p>
+                          </div>
+                          <div className="bg-slate-50 p-3 rounded-xl border space-y-1">
+                            <span className="font-bold text-indigo-900">🥾 등산 경력 및 빈도</span>
+                            <div className="bg-white p-2 rounded border text-slate-700 space-y-1 mt-0.5">
+                              <div><b>등산 경력:</b> {survey.hiking_exp || '미입력'}</div>
+                              <div><b>등반 빈도:</b> {survey.climbing_freq || '미입력'}</div>
+                              <div><b>최고 난이도:</b> {survey.climbing_grade || '미입력'}</div>
+                            </div>
+                          </div>
+                          <div className="bg-slate-50 p-3 rounded-xl border space-y-1">
+                            <span className="font-bold text-indigo-900">⚓ 빌레이 및 매듭 기술</span>
+                            <div className="bg-white p-2 rounded border text-slate-700 space-y-1 mt-0.5">
+                              <div><b>후등 빌레이:</b> {survey.belay_follow || '미입력'}</div>
+                              <div><b>선등 빌레이:</b> {survey.belay_lead || '미입력'}</div>
+                              <div><b>매듭 수행:</b> {survey.knot_skill || '미입력'}</div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
             </div>
           )}
