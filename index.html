@@ -627,72 +627,70 @@
 
 {/* 조원 카드 리스트 */}
 <div className="space-y-2">
-  {groupStudents.length === 0 ? (
-    <div className="text-center py-6 text-slate-400 text-xs italic bg-slate-50 rounded-xl border border-dashed">
-      배정된 조원이 없습니다.
-    </div>
-  ) : (
-    groupStudents.map(s => {
-      // 설문 데이터 안전 조회
-      const survey = (typeof surveys !== 'undefined' && (Array.isArray(surveys) 
-        ? surveys.find(sur => sur.student_id === s.id || sur.name === s.name) 
-        : surveys[s.id])) || {
-          experience: s.experience || s.career || s.survey_experience,
-          goal: s.goal || s.survey_goal,
-          memo: s.memo || s.survey_memo,
-          level: s.level
-        };
+ {groupStudents.length === 0 ? (
+  <div className="text-center py-6 text-slate-400 text-xs italic bg-slate-50 rounded-xl border border-dashed">
+    배정된 조원이 없습니다.
+  </div>
+) : (
+  groupStudents.map(s => {
+    // 설문 데이터 안전 조회
+    const survey = (typeof surveys !== 'undefined' && (Array.isArray(surveys) 
+      ? surveys.find(sur => sur.student_id === s.id || sur.name === s.name) 
+      : surveys[s.id])) || {
+        experience: s.experience || s.career || s.survey_experience,
+        goal: s.goal || s.survey_goal,
+        memo: s.memo || s.survey_memo,
+        level: s.level
+      };
 
-      // 관리자/학생 데이터에 이미 계산되어 있는 평균값 직접 참조 
-      // (DB 컬럼명에 맞춰 s.average, s.avg_score 등 알맞은 속성명으로 변경하여 사용)
-      const rawAvg = s.average_score ?? s.average ?? s.score;
-      const avgTotal = rawAvg !== undefined && rawAvg !== null && !isNaN(rawAvg) 
-        ? Number(rawAvg).toFixed(1) 
-        : '-';
+    // totalScore 변수 바로 참조
+    const rawAvg = s.totalScore;
+    const avgTotal = rawAvg !== undefined && rawAvg !== null && !isNaN(rawAvg) 
+      ? Number(rawAvg).toFixed(1) 
+      : '-';
 
-      return (
-        <div 
-          key={s.id}
-          onClick={() => setSelectedGroupViewStudent(s)}
-          className="bg-slate-50 hover:bg-slate-100/80 p-3 rounded-xl border border-slate-200/80 transition-all cursor-pointer flex items-center justify-between gap-3 group"
-        >
-          {/* 학생 사진 및 기본 정보 */}
-          <div className="flex items-center gap-3">
-            {s.photo_url ? (
-              <img src={s.photo_url} alt={s.name} className="w-12 h-12 rounded-xl object-cover border shadow-2xs shrink-0" />
-            ) : (
-              <div className="w-12 h-12 rounded-xl bg-slate-200 flex items-center justify-center font-bold text-slate-600 text-sm border shadow-2xs shrink-0">
-                {s.name ? s.name[0] : ''}
-              </div>
-            )}
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-sm text-slate-900 group-hover:text-indigo-600 transition-colors">
-                  {s.name}
-                </span>
-                {renderLevelBadge(s.level || survey?.level)}
-              </div>
-              <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">
-                {survey?.experience || survey?.career ? `경력: ${survey.experience || survey.career}` : '사전 설문 미작성'} {survey?.goal ? `/ 목표: ${survey.goal}` : ''}
-              </p>
+    return (
+      <div 
+        key={s.id}
+        onClick={() => setSelectedGroupViewStudent(s)}
+        className="bg-slate-50 hover:bg-slate-100/80 p-3 rounded-xl border border-slate-200/80 transition-all cursor-pointer flex items-center justify-between gap-3 group"
+      >
+        {/* 학생 사진 및 기본 정보 */}
+        <div className="flex items-center gap-3">
+          {s.photo_url ? (
+            <img src={s.photo_url} alt={s.name} className="w-12 h-12 rounded-xl object-cover border shadow-2xs shrink-0" />
+          ) : (
+            <div className="w-12 h-12 rounded-xl bg-slate-200 flex items-center justify-center font-bold text-slate-600 text-sm border shadow-2xs shrink-0">
+              {s.name ? s.name[0] : ''}
             </div>
-          </div>
-
-          {/* 종합 평균 점수 */}
-          <div className="flex items-center gap-3 text-right shrink-0">
-            <div>
-              <span className="text-[10px] text-slate-400 block font-bold">종합 평균</span>
-              <span className="text-sm font-black text-indigo-600">{avgTotal !== '-' ? `${avgTotal}점` : '-'}</span>
+          )}
+          <div>
+            <div className="flex items-center gap-1.5">
+              <span className="font-extrabold text-sm text-slate-900 group-hover:text-indigo-600 transition-colors">
+                {s.name}
+              </span>
+              {renderLevelBadge(s.level || survey?.level)}
             </div>
-            <span className="text-slate-300 font-bold group-hover:text-indigo-500 transition-colors">&gt;</span>
+            <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+              {survey?.experience || survey?.career ? `경력: ${survey.experience || survey.career}` : '사전 설문 미작성'} {survey?.goal ? `/ 목표: ${survey.goal}` : ''}
+            </p>
           </div>
         </div>
-      );
-    })
-  )}
+
+        {/* 종합 평균 점수 */}
+        <div className="flex items-center gap-3 text-right shrink-0">
+          <div>
+            <span className="text-[10px] text-slate-400 block font-bold">종합 평균</span>
+            <span className="text-sm font-black text-indigo-600">{avgTotal !== '-' ? `${avgTotal}점` : '-'}</span>
+          </div>
+          <span className="text-slate-300 font-bold group-hover:text-indigo-500 transition-colors">&gt;</span>
+        </div>
+      </div>
+    );
+  })
+)}
 </div>
 )}
-
 {selectedGroupViewStudent && (() => {
   const s = selectedGroupViewStudent;
   
