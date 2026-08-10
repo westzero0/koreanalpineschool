@@ -28,7 +28,7 @@
     const SUPABASE_ANON_KEY = 'sb_publishable_0qx2MvW4AsHrQeHrK7OmzA_kcxFr9yi';
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // [수정 1] subFields의 key 값들을 모두 고유한 이름으로 변경하여 중복 선택 현상 방지
+    // 고유 Key 정의
     const EVAL_STRUCTURE = {
       climbing: {
         title: '🧗 1. 등반',
@@ -100,7 +100,7 @@
       const [isMyGroupOpen, setIsMyGroupOpen] = useState(false); 
       
       const [loading, setLoading] = useState(true);
-      const [savingStatus, setSavingStatus] = useState('');
+      const [saving, setSaving] = useState(false);
 
       const [students, setStudents] = useState([]);
       const [groups, setGroups] = useState([]);
@@ -118,7 +118,6 @@
       const [modalTab, setModalTab] = useState('score'); 
 
       const [evalDetails, setEvalDetails] = useState({});
-      // [수정 2] 기본 'M' 할당 제거, 빈 객체로 시작
       const [evalResults, setEvalResults] = useState({});
       const [evalNote, setEvalNote] = useState('');
 
@@ -160,11 +159,7 @@
             .from('students')
             .select('*, student_surveys!fk_student(*)');
 
-          if (stdErr) {
-            console.error("students 조회 에러:", stdErr);
-            throw stdErr;
-          }
-
+          if (stdErr) throw stdErr;
           if (stdData) setStudents(stdData);
           
           const { data: instData } = await supabase.from('instructors').select('*');
@@ -230,29 +225,39 @@
           setEvalResults(existingEv.results || {});
           setEvalNote(existingEv.note || '');
         } else {
-          // [수정 2-1] 신규 평가 시에도 'M' 고정값 없이 빈 값으로 시작
           setEvalDetails({});
           setEvalResults({});
           setEvalNote('');
         }
       };
 
-      // [수정 3] 실시간 저장 함수(autoSaveEval)에 score 데이터 연산 포함
-      const autoSaveEval = async (updatedDetails, updatedResults, updatedNote) => {
+      // 입력 시 화면 상태만 변경 (실시간 저장 기능 제거)
+      const handleSubFieldChange = (key, val) => {
+        setEvalDetails(prev => ({ ...prev, [key]: val }));
+      };
+
+      const handleResultChange = (resKey, val) => {
+        setEvalResults(prev => ({ ...prev, [resKey]: val }));
+      };
+
+      // [저장하기] 버튼 클릭 시 한 번에 저장
+      const handleManualSave = async () => {
         if (!selectedStudent || !instructorName) return;
-        setSavingStatus('저장 중...');
+        
+        setSaving(true);
 
         const payload = {
           student_id: selectedStudent.id,
           instructor_name: instructorName,
-          details: updatedDetails,
-          results: updatedResults,
-          note: updatedNote,
-          climbing_score: RATING_SCORES[updatedResults.climbingResult] || null,
-          second_belay_score: RATING_SCORES[updatedResults.secondBelayResult] || null,
-          leading_belay_score: RATING_SCORES[updatedResults.leadBelayResult] || null,
-          rappelling_score: RATING_SCORES[updatedResults.rappellingResult] || null,
-          walking_score: RATING_SCORES[updatedResults.walkingResult] || null,
+          details: evalDetails,
+          results: evalResults,
+          note: evalNote,
+          // null 방지를 위해 값이 없으면 기본값 'M' 할당
+          climbing_score: RATING_SCORES[evalResults.climbingResult] || 2,
+          second_belay_score: RATING_SCORES[evalResults.secondBelayResult] || 2,
+          leading_belay_score: RATING_SCORES[evalResults.leadBelayResult] || 2,
+          rappelling_score: RATING_SCORES[evalResults.rappellingResult] || 2,
+          walking_score: RATING_SCORES[evalResults.walkingResult] || 2,
           updated_at: new Date().toISOString()
         };
 
@@ -262,46 +267,29 @@
             .upsert(payload, { onConflict: 'student_id,instructor_name' });
 
           if (error) throw error;
-          setSavingStatus('저장됨 ✓');
 
+          // 프론트엔드 상태 업데이트
           setEvaluations(prev => ({
             ...prev,
             [selectedStudent.id]: {
               ...(prev[selectedStudent.id] || {}),
               [instructorName]: {
-                details: updatedDetails,
-                results: updatedResults,
-                note: updatedNote,
+                details: evalDetails,
+                results: evalResults,
+                note: evalNote,
                 updatedAt: payload.updated_at
               }
             }
           }));
-          setTimeout(() => setSavingStatus(''), 1500);
+
+          alert('평가가 성공적으로 저장되었습니다.');
+          setSelectedStudent(null);
         } catch (err) {
-          console.error("실시간 저장 실패:", err);
-          setSavingStatus('저장 실패!');
+          console.error("저장 실패:", err);
+          alert('저장 실패: ' + err.message);
+        } finally {
+          setSaving(false);
         }
-      };
-
-      const handleSubFieldChange = (key, val) => {
-        const next = { ...evalDetails, [key]: val };
-        setEvalDetails(next);
-        autoSaveEval(next, evalResults, evalNote);
-      };
-
-      const handleResultChange = (resKey, val) => {
-        const next = { ...evalResults, [resKey]: val };
-        setEvalResults(next);
-        autoSaveEval(evalDetails, next, evalNote);
-      };
-
-      const handleNoteChange = (e) => {
-        const val = e.target.value;
-        setEvalNote(val);
-      };
-
-      const handleNoteBlur = () => {
-        autoSaveEval(evalDetails, evalResults, evalNote);
       };
 
       const handleAdminAuth = () => {
@@ -745,7 +733,7 @@
                     onClick={() => setModalTab('score')} 
                     className={`flex-1 py-2.5 text-center ${modalTab === 'score' ? 'border-b-2 border-amber-500 text-amber-600 font-extrabold' : 'text-slate-400'}`}
                   >
-                    📝 평가 (실시간 자동저장)
+                    📝 평가 입력
                   </button>
                   <button 
                     onClick={() => setModalTab('survey')} 
@@ -757,14 +745,7 @@
 
                 {modalTab === 'score' && (
                   <div className="space-y-4 pt-1">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-slate-400">평가 입력 시 자동 저장됩니다.</span>
-                      {savingStatus && (
-                        <span className={`font-bold text-[11px] ${savingStatus.includes('실패') ? 'text-red-500' : 'text-emerald-600 animate-pulse'}`}>
-                          {savingStatus}
-                        </span>
-                      )}
-                    </div>
+                    <p className="text-xs text-slate-400">항목 선택 후 하단의 [저장하기] 버튼을 눌러주세요.</p>
 
                     {Object.entries(EVAL_STRUCTURE).map(([categoryKey, category]) => (
                       <div key={categoryKey} className="bg-slate-50 p-3.5 rounded-xl border space-y-3">
@@ -850,8 +831,7 @@
                         rows="2" 
                         placeholder="특이사항이나 강점/보완점 입력..."
                         value={evalNote}
-                        onChange={handleNoteChange}
-                        onBlur={handleNoteBlur} /* [수정 4] 텍스트 입력 후 칸을 벗어나면 저장됨 */
+                        onChange={e => setEvalNote(e.target.value)}
                         className="w-full p-2.5 border rounded-xl text-xs bg-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-500"
                       ></textarea>
                     </div>
@@ -862,19 +842,15 @@
                         onClick={() => setSelectedStudent(null)}
                         className="px-4 py-2 bg-slate-200 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-300 transition-all"
                       >
-                        닫기
+                        취소
                       </button>
                       <button
                         type="button"
-                        onClick={() => {
-                          // [수정 5] 인자 없는 handleSave 에러를 방지하고 autoSaveEval를 명시적 재호출 후 종료
-                          autoSaveEval(evalDetails, evalResults, evalNote);
-                          alert('저장되었습니다.');
-                          setSelectedStudent(null);
-                        }}
-                        className="px-5 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 shadow-md transition-all"
+                        disabled={saving}
+                        onClick={handleManualSave}
+                        className="px-5 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 shadow-md transition-all flex items-center gap-1"
                       >
-                        저장하기
+                        {saving ? '저장 중...' : '저장하기'}
                       </button>
                     </div>
                   </div>
