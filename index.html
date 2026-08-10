@@ -100,6 +100,36 @@
       }
       return student.student_surveys;
     };
+
+
+    // 1. App 컴포넌트 맨 위(또는 App 바깥 상단)에 정의를 놓습니다.
+const calculateGradeFromDetails = (details, keys) => {
+  if (!details || !keys || keys.length === 0) return { grade: 'L', score: 1 };
+  let passCount = 0;
+  keys.forEach((key) => {
+    if (details[key] === 'P' || details[key] === 'Pass') passCount++;
+  });
+  const passRatio = passCount / keys.length;
+  if (passRatio >= 0.8) return { grade: 'H', score: 3 };
+  if (passRatio >= 0.5) return { grade: 'M', score: 2 };
+  return { grade: 'L', score: 1 };
+};
+
+const scoreToGrade = (score) => {
+  const num = Number(score);
+  if (num >= 2.5) return 'H';
+  if (num >= 1.5) return 'M';
+  if (num > 0) return 'L';
+  return '-';
+};
+
+const CATEGORY_KEYS = {
+  climbing: ['cb_harness', 'cb_foot', 'cb_hand', 'cb_stability', 'cb_margin'],
+  secondBelay: ['sb_anchor', 'sb_install', 'sb_ropePull', 'sb_ropeSort', 'sb_lowering'],
+  leadingBelay: ['lb_device', 'lb_shuffle', 'lb_handPos', 'lb_stability'],
+  rappelling: ['rp_ropeInstall', 'rp_ropeFix', 'rp_connect', 'rp_stop', 'rp_ascending', 'rp_skill'],
+};
+
     
     function App() {
       const [instructorName, setInstructorName] = useState(() => localStorage.getItem('instructorName') || '');
@@ -628,10 +658,10 @@
               </div>
             )}
 
-      {activeTab === 'admin' && (() => {
-  // 헬퍼 함수: P/F 항목에서 H/M/L 환산
+     {activeTab === 'admin' && (() => {
+  // 1. 헬퍼 함수 정의
   const calculateGradeFromDetails = (details, keys) => {
-    if (!details || keys.length === 0) return { grade: 'L', score: 1 };
+    if (!details || !keys || keys.length === 0) return { grade: 'L', score: 1 };
     let passCount = 0;
     keys.forEach((key) => {
       if (details[key] === 'P' || details[key] === 'Pass') passCount++;
@@ -657,9 +687,11 @@
     rappelling: ['rp_ropeInstall', 'rp_ropeFix', 'rp_connect', 'rp_stop', 'rp_ascending', 'rp_skill'],
   };
 
-  const calculatedList = students
+  // 2. 학생 데이터 집계 및 계산
+  const calculatedList = (students || [])
     .map((student) => {
-      const evalData = evaluations[student.id] || evaluations[student.student_id];
+      const studentId = student.id || student.student_id;
+      const evalData = evaluations?.[studentId];
       const studentEvals = Array.isArray(evalData)
         ? evalData
         : Object.values(evalData || {});
@@ -710,6 +742,7 @@
     })
     .sort((a, b) => b.totalScore - a.totalScore);
 
+  // 3. UI 렌더링
   return (
     <div className="space-y-6">
       {/* 1. 과목별 성적 순위표 */}
@@ -726,7 +759,7 @@
 
         <div className="space-y-2.5">
           {calculatedList.map((s, index) => (
-            <div key={s.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div key={s.id || index} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <span className={`w-5 text-center font-black text-sm ${index === 0 ? 'text-amber-500 text-base' : 'text-slate-400'}`}>
                   {index + 1}
@@ -761,7 +794,7 @@
         </div>
       </div>
 
-      {/* 2. 조 배정 및 강사 배정 설정 섹션 */}
+      {/* 2. 조 및 강사 배정 섹션 */}
       <div className="pt-4 border-t border-slate-200 space-y-4">
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
           <h2 className="font-extrabold text-sm text-slate-900 mb-1">👥 조 및 담당 강사 배정</h2>
