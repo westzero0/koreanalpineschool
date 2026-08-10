@@ -163,9 +163,16 @@
             setGroups(['1조', '2조', '3조', '4조', '5조', '6조', '7조', '8조', '9조']);
           }
 
-          const { data: stdData, error: stdErr } = await supabase.from('students').select('*, student_surveys(*)');
-          if (stdErr) throw stdErr;
-          setStudents(stdData || []);
+        // 기존 구문 대체
+const { data: stdData, error: stdErr } = await supabase
+  .from('students')
+  .select(`
+    *,
+    student_surveys!student_id(*)
+  `);
+
+if (stdErr) throw stdErr;
+if (stdData) setStudents(stdData);
 
           const { data: instData } = await supabase.from('instructors').select('*');
           if (instData) setInstructorList(instData);
