@@ -736,10 +736,10 @@ function App() {
                           <span className="font-bold text-slate-400 block text-[10px]">교육 참여 목표</span>
                           <p className="mt-0.5 font-medium">{survey?.purpose || '작성된 내용이 없습니다.'}</p>
                         </div>
-                        {survey?.learner_status && (
+                        {survey?.physical_note && (
                           <div>
                             <span className="font-bold text-slate-400 block text-[10px]">학습자 상태 및 특이사항</span>
-                            <p className="mt-0.5 font-medium">{survey.learner_status}</p>
+                            <p className="mt-0.5 font-medium">{survey.physical_note}</p>
                           </div>
                         )}
                       </div>
