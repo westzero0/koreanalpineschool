@@ -99,16 +99,36 @@ const RATING_SCORES = { 'H': 3, 'M': 2, 'L': 1, 'P': 3, 'F': 1 };
 
     // 1. App 컴포넌트 맨 위(또는 App 바깥 상단)에 정의를 놓습니다.
 const calculateGradeFromDetails = (details, keys) => {
-  if (!details || !keys || keys.length === 0) return { grade: 'L', score: 1 };
+  if (!details || !keys || keys.length === 0) return { grade: '-', score: 0 };
+
+  let totalItems = 0;
   let passCount = 0;
+
   keys.forEach((key) => {
-    if (details[key] === 'P' || details[key] === 'Pass') passCount++;
+    const val = details[key];
+    if (!val) return; // 평가되지 않은 항목 제외
+
+    totalItems++;
+
+    // Pass(P), 또는 H(상)/M(중) 항목을 Pass 성격으로 인정
+    if (val === 'P' || val === 'Pass' || val === 'H' || val === 'M') {
+      passCount++;
+    }
   });
-  const passRatio = passCount / keys.length;
+
+  // 평가된 항목이 없을 때
+  if (totalItems === 0) return { grade: '-', score: 0 };
+
+  // Pass 비율 계산 (0.0 ~ 1.0)
+  const passRatio = passCount / totalItems;
+
+  // 비율에 따른 결과 산출
+  // 80% 이상 Pass -> 상(H) / 50% 이상 Pass -> 중(M) / 그 외 -> 하(L)
   if (passRatio >= 0.8) return { grade: 'H', score: 3 };
   if (passRatio >= 0.5) return { grade: 'M', score: 2 };
   return { grade: 'L', score: 1 };
 };
+    
 
 const scoreToGrade = (score) => {
   const num = Number(score);
