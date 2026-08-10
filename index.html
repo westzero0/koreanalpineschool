@@ -826,10 +826,10 @@
   );
 })()}
 
-    {activeTab === 'admin' && (
+ {activeTab === 'admin' && (
   <div className="space-y-6">
     <div className="space-y-3">
-      {/* 관리자 헤더 */}
+      {/* 헤더 */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center gap-4">
         <div>
           <h2 className="font-extrabold text-sm text-slate-900">📊 과목별 성적 순위표</h2>
@@ -848,12 +848,12 @@
         </div>
       </div>
 
-      {/* 교육생 순위 리스트 */}
+      {/* 순위 리스트 */}
       <div className="space-y-2.5">
         {calculatedList.map((s, index) => (
           <div key={s.id || index} className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
             
-            {/* [상단] 순위, 이름, 조 선택, 평가강사 수 & 우측 평균 점수 (잘림 방지) */}
+            {/* [상단] 기본 정보 및 평균 */}
             <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
               <div className="flex items-center gap-2.5 min-w-0">
                 <span className={`w-5 text-center font-black text-sm shrink-0 ${index === 0 ? 'text-amber-500 text-base' : 'text-slate-400'}`}>
@@ -879,14 +879,13 @@
                 </div>
               </div>
 
-              {/* 평균 점수 뱃지 (shrink-0 적용으로 잘림 완전 방지) */}
               <div className="bg-slate-50 px-3 py-1 rounded-xl border border-slate-100 text-center min-w-[55px] shrink-0">
                 <span className="text-[9px] text-slate-400 block font-bold">평균</span>
                 <span className="text-sm font-black text-indigo-900">{s.totalScore}</span>
               </div>
             </div>
 
-            {/* [하단] 5개 과목 성적 (모바일 표출 보장 5열 그리드) */}
+            {/* [하단] 5개 과목 성적 */}
             <div className="grid grid-cols-5 gap-1 bg-slate-50 p-2 rounded-xl border border-slate-100 text-center">
               <div className="flex flex-col items-center justify-center gap-0.5">
                 <span className="text-[9px] text-slate-400 font-bold truncate">등반</span>
