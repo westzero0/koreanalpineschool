@@ -28,60 +28,55 @@
     const SUPABASE_ANON_KEY = 'sb_publishable_0qx2MvW4AsHrQeHrK7OmzA_kcxFr9yi';
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const EVAL_STRUCTURE = {
-      climbing: {
-        title: '🧗 1. 등반',
-        subFields: [
-          { key: 'climb_beltKnot', label: '벨트매듭', type: 'PF' },
-          { key: 'climb_footWork', label: '발사용', type: 'HML' },
-          { key: 'climb_handWork', label: '손사용', type: 'HML' },
-          { key: 'climb_stability', label: '안정성', type: 'HML' },
-          { key: 'climb_composure', label: '여유', type: 'HML' },
-        ],
-        resultKey: 'climbingResult'
-      },
-      secondBelay: {
-        title: '⚓ 2. 세컨 빌레이',
-        subFields: [
-          { key: 'sb_anchorSetup', label: '지점 세팅', type: 'PF' },
-          { key: 'sb_deviceSetup', label: '설치', type: 'PF' },
-          { key: 'sb_ropePull', label: '줄당기기', type: 'PF' },
-          { key: 'sb_ropeManage', label: '로프정리', type: 'PF' },
-          { key: 'sb_lowering', label: '하강', type: 'PF' },
-        ],
-        resultKey: 'secondBelayResult'
-      },
-      leadBelay: {
-        title: '🧗‍♂️ 3. 리딩빌레이',
-        subFields: [
-          { key: 'lb_deviceSetup', label: '디바이스 설치', type: 'PF' },
-          { key: 'lb_shuffle', label: '셔플', type: 'PF' },
-          { key: 'lb_brakeHand', label: '제동손 위치', type: 'PF' },
-          { key: 'lb_stability', label: '안정성', type: 'HML' },
-        ],
-        resultKey: 'leadBelayResult'
-      },
-      rappelling: {
-        title: '🪢 4. 하강',
-        subFields: [
-          { key: 'rp_ropeSetup', label: '로프설치', type: 'PF' },
-          { key: 'rp_ropeFix', label: '로프고정', type: 'PF' },
-          { key: 'rp_harnessConnect', label: '체결', type: 'PF' },
-          { key: 'rp_stopCheck', label: '정지', type: 'PF' },
-          { key: 'rp_ascending', label: '어센딩', type: 'PF' },
-          { key: 'rp_proficiency', label: '능숙도', type: 'PF' },
-        ],
-        resultKey: 'rappellingResult'
-      },
-      walking: {
-        title: '🥾 5. 보행',
-        subFields: [],
-        resultKey: 'walkingResult'
-      }
-    };
+  const EVAL_STRUCTURE = {
+  climbing: {
+    title: '🧗 1. 등반',
+    subFields: [
+      { key: 'climb_beltKnot', label: '벨트매듭', type: 'PF' },
+      { key: 'climb_footWork', label: '발사용', type: 'HML' },
+      { key: 'climb_handWork', label: '손사용', type: 'HML' },
+      { key: 'climb_stability', label: '안정성', type: 'HML' },
+      { key: 'climb_composure', label: '여유', type: 'HML' },
+    ]
+  },
+  secondBelay: {
+    title: '⚓ 2. 세컨 빌레이',
+    subFields: [
+      { key: 'sb_anchorSetup', label: '지점 세팅', type: 'PF' },
+      { key: 'sb_deviceSetup', label: '설치', type: 'PF' },
+      { key: 'sb_ropePull', label: '줄당기기', type: 'PF' },
+      { key: 'sb_ropeManage', label: '로프정리', type: 'PF' },
+      { key: 'sb_lowering', label: '하강', type: 'PF' },
+    ]
+  },
+  leadBelay: {
+    title: '🧗‍♂️ 3. 리딩빌레이',
+    subFields: [
+      { key: 'lb_deviceSetup', label: '디바이스 설치', type: 'PF' },
+      { key: 'lb_shuffle', label: '셔플', type: 'PF' },
+      { key: 'lb_brakeHand', label: '제동손 위치', type: 'PF' },
+      { key: 'lb_stability', label: '안정성', type: 'HML' },
+    ]
+  },
+  rappelling: {
+    title: '🪢 4. 하강',
+    subFields: [
+      { key: 'rp_ropeSetup', label: '로프설치', type: 'PF' },
+      { key: 'rp_ropeFix', label: '로프고정', type: 'PF' },
+      { key: 'rp_harnessConnect', label: '체결', type: 'PF' },
+      { key: 'rp_stopCheck', label: '정지', type: 'PF' },
+      { key: 'rp_ascending', label: '어센딩', type: 'PF' },
+      { key: 'rp_proficiency', label: '능숙도', type: 'PF' },
+    ]
+  },
+  walking: {
+    title: '🥾 5. 보행',
+    subFields: [],
+    resultKey: 'walkingResult' // 보행과목만 결과 선택 활성화
+  }
+};
 
-    const RATING_SCORES = { 'H': 3, 'M': 2, 'L': 1, 'P': 3, 'F': 1 };
-
+const RATING_SCORES = { 'H': 3, 'M': 2, 'L': 1, 'P': 3, 'F': 1 };
     // 사전 등급 배지 렌더링 헬퍼 함수 (advance / inter / basic)
     const renderLevelBadge = (level) => {
       const lvl = (level || 'basic').toLowerCase();
@@ -124,10 +119,10 @@ const scoreToGrade = (score) => {
 };
 
 const CATEGORY_KEYS = {
-  climbing: ['cb_harness', 'cb_foot', 'cb_hand', 'cb_stability', 'cb_margin'],
-  secondBelay: ['sb_anchor', 'sb_install', 'sb_ropePull', 'sb_ropeSort', 'sb_lowering'],
-  leadingBelay: ['lb_device', 'lb_shuffle', 'lb_handPos', 'lb_stability'],
-  rappelling: ['rp_ropeInstall', 'rp_ropeFix', 'rp_connect', 'rp_stop', 'rp_ascending', 'rp_skill'],
+  climbing: ['climb_beltKnot', 'climb_footWork', 'climb_handWork', 'climb_stability', 'climb_composure'],
+  secondBelay: ['sb_anchorSetup', 'sb_deviceSetup', 'sb_ropePull', 'sb_ropeManage', 'sb_lowering'],
+  leadBelay: ['lb_deviceSetup', 'lb_shuffle', 'lb_brakeHand', 'lb_stability'],
+  rappelling: ['rp_ropeSetup', 'rp_ropeFix', 'rp_harnessConnect', 'rp_stopCheck', 'rp_ascending', 'rp_proficiency'],
 };
 
     
@@ -358,7 +353,23 @@ const CATEGORY_KEYS = {
       const filteredStudents = students.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase().trim()));
 
 
-   
+
+      const handleSaveGroupInstructor = async (groupName, instName) => {
+  try {
+    const { error } = await supabase.from('group_managers').upsert({
+      group_name: groupName,
+      instructor_name: instName || null,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'group_name' });
+
+    if (error) throw error;
+    setGroupInstructors(prev => ({ ...prev, [groupName]: instName }));
+  } catch (err) {
+    console.error("강사 배정 저장 실패:", err);
+  }
+};
+
+      
 
       const rankedStudents = students
   .map((student) => {
@@ -804,18 +815,14 @@ const CATEGORY_KEYS = {
             {(groups || ['1조', '2조', '3조', '4조']).map((group) => (
               <div key={group} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
                 <span className="font-bold text-xs text-slate-700">{group}</span>
-                <input
-                  type="text"
-                  placeholder="담당 강사명"
-                  defaultValue={groupInstructors?.[group] || ''}
-                  onBlur={(e) => {
-                    if (typeof handleSaveGroupInstructor === 'function') {
-                      handleSaveGroupInstructor(group, e.target.value);
-                    }
-                  }}
-                  className="text-xs p-2 border border-slate-300 rounded-lg w-36 focus:outline-none focus:ring-1 focus:ring-amber-500"
-                />
-              </div>
+               <input
+        type="text"
+        placeholder="담당 강사명"
+        defaultValue={groupInstructors?.[group] || ''}
+        onBlur={(e) => handleSaveGroupInstructor(group, e.target.value)}
+        className="text-xs p-2 border border-slate-300 rounded-lg w-36 focus:outline-none focus:ring-1 focus:ring-amber-500"
+      />
+    </div>
             ))}
           </div>
         </div>
@@ -987,31 +994,34 @@ const CATEGORY_KEYS = {
                           </div>
                         )}
 
-                        <div className="pt-2 border-t flex justify-between items-center bg-amber-50/60 p-2 rounded-lg border border-amber-200">
-                          <span className="text-xs font-bold text-amber-900">결과 (H / M / L)</span>
-                          <div className="flex gap-1.5">
-                            {['L', 'M', 'H'].map(resOpt => {
-                              const isSelected = evalResults[category.resultKey] === resOpt;
-                              return (
-                                <button
-                                  key={resOpt}
-                                  type="button"
-                                  onClick={() => handleResultChange(category.resultKey, resOpt)}
-                                  className={`px-3 py-1 rounded-lg text-xs font-black border transition-all ${
-                                    isSelected 
-                                      ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-sm scale-105' 
-                                      : 'bg-white text-slate-600 border-slate-200'
-                                  }`}
-                                >
-                                  {resOpt === 'L' ? '하(L)' : resOpt === 'M' ? '중(M)' : '상(H)'}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-
+                  {category.resultKey && (
+          <div className="pt-2 border-t flex justify-between items-center bg-amber-50/60 p-2 rounded-lg border border-amber-200">
+            <span className="text-xs font-bold text-amber-900">결과 (H / M / L)</span>
+            <div className="flex gap-1.5">
+              {['L', 'M', 'H'].map(resOpt => {
+                const isSelected = evalResults[category.resultKey] === resOpt;
+                return (
+                  <button
+                    key={resOpt}
+                    type="button"
+                    onClick={() => handleResultChange(category.resultKey, resOpt)}
+                    className={`px-3 py-1 rounded-lg text-xs font-black border transition-all ${
+                      isSelected 
+                        ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-sm scale-105' 
+                        : 'bg-white text-slate-600 border-slate-200'
+                    }`}
+                  >
+                    {resOpt === 'L' ? '하(L)' : resOpt === 'M' ? '중(M)' : '상(H)'}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    ))}
+  </div>
+)}
                     <div>
                       <label className="text-xs font-bold text-slate-700 block mb-1">관찰 메모 & 특이사항</label>
                       <textarea 
