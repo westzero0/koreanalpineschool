@@ -602,7 +602,7 @@
               </div>
             )}
 
-            {activeTab === 'allGroup' && (
+           {activeTab === 'allGroup' && (
               <div className="space-y-4">
                 {groups.map(grp => {
                   const grpName = grp.name || grp;
@@ -620,7 +620,7 @@
                         </span>
                       </div>
 
-                      <div className="space-y-2">
+                      <div className="space-y-2.5">
                         {groupStudents.map(s => {
                           const studentEvs = Object.entries(evaluations[s.id] || {});
                           const survey = getSurveyData(s);
@@ -628,27 +628,48 @@
                             <div 
                               key={s.id}
                               onClick={() => handleOpenStudentModal(s)}
-                              className="bg-slate-50 p-3 rounded-xl border space-y-2 cursor-pointer hover:bg-slate-100"
+                              className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 space-y-2.5 cursor-pointer hover:bg-slate-100/80 transition-all"
                             >
                               <div className="flex justify-between items-center">
                                 <div className="flex items-center gap-1.5">
-                                  <span className="font-bold text-sm text-slate-800">{s.name}</span>
+                                  <span className="font-bold text-sm text-slate-900">{s.name}</span>
                                   {renderLevelBadge(s.level || survey?.level)}
                                 </div>
-                                <span className="text-[11px] text-indigo-600 font-bold">평가 강사: {studentEvs.length}명</span>
+                                <span className="text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
+                                  평가 강사: {studentEvs.length}명
+                                </span>
                               </div>
 
                               {studentEvs.length > 0 && (
-                                <div className="space-y-1 pt-1 border-t text-[11px]">
+                                <div className="space-y-2 pt-1 border-t border-slate-200">
                                   {studentEvs.map(([inst, ev]) => (
-                                    <div key={inst} className="flex justify-between items-center bg-white p-1.5 rounded border text-slate-700">
-                                      <span className="font-bold">👤 {inst}</span>
-                                      <div className="flex gap-1 text-[10px] font-bold">
-                                        <span>등반:{ev.results?.climbingResult || '-'}</span>
-                                        <span>세컨:{ev.results?.secondBelayResult || '-'}</span>
-                                        <span>리딩:{ev.results?.leadingBelayResult || '-'}</span>
-                                        <span>하강:{ev.results?.rappellingResult || '-'}</span>
-                                        <span>보행:{ev.results?.walkingResult || '-'}</span>
+                                    <div key={inst} className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs space-y-2">
+                                      <div className="flex items-center justify-between">
+                                        <span className="font-extrabold text-xs text-slate-800 flex items-center gap-1">
+                                          👤 {inst}
+                                        </span>
+                                      </div>
+
+                                      {/* 과목별 성적을 직관적인 그리드 형태로 정렬 */}
+                                      <div className="grid grid-cols-5 gap-1.5 text-center">
+                                        {[
+                                          { label: '등반', val: ev.results?.climbingResult },
+                                          { label: '세컨', val: ev.results?.secondBelayResult },
+                                          { label: '리딩', val: ev.results?.leadingBelayResult },
+                                          { label: '하강', val: ev.results?.rappellingResult },
+                                          { label: '보행', val: ev.results?.walkingResult },
+                                        ].map((item, idx) => (
+                                          <div key={idx} className="bg-slate-50 border border-slate-200 rounded-lg py-1 px-0.5 flex flex-col justify-center">
+                                            <span className="text-[10px] font-medium text-slate-400 block">{item.label}</span>
+                                            <span className={`text-xs font-black mt-0.5 block ${
+                                              item.val === 'H' ? 'text-indigo-600' :
+                                              item.val === 'M' ? 'text-slate-700' :
+                                              item.val === 'L' ? 'text-red-600' : 'text-slate-300'
+                                            }`}>
+                                              {item.val || '-'}
+                                            </span>
+                                          </div>
+                                        ))}
                                       </div>
                                     </div>
                                   ))}
