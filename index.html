@@ -440,59 +440,61 @@ if (stdData) setStudents(stdData);
                       검색 결과가 없습니다.
                     </div>
                   ) : (
-                    filteredStudents.map(s => {
-                      const survey = Array.isArray(s.student_surveys) ? s.student_surveys[0] : s.student_surveys;
-                      const myEval = evaluations[s.id]?.[instructorName];
+                 {filteredStudents.map(s => {
+  // 헬퍼 함수로 survey 데이터 추출
+  const survey = getSurveyData(s);
+  const myEval = evaluations[s.id]?.[instructorName];
 
-                      return (
-                        <div 
-                          key={s.id} 
-                          onClick={() => handleOpenStudentModal(s)}
-                          className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between cursor-pointer hover:border-amber-400 transition-all active:scale-[0.99]"
-                        >
-                          <div className="flex items-center gap-3">
-                            {/* 프로필 사진 또는 기본 아이콘 */}
-                            {s.photo_url ? (
-                              <img src={s.photo_url} alt={s.name} className="w-12 h-12 rounded-xl object-cover border border-slate-100" />
-                            ) : (
-                              <div className="w-12 h-12 rounded-xl bg-slate-100 border flex items-center justify-center text-xl font-bold text-slate-400">
-                                {s.name ? s.name[0] : '👤'}
-                              </div>
-                            )}
+  return (
+    <div 
+      key={s.id} 
+      onClick={() => handleOpenStudentModal(s)}
+      className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between cursor-pointer hover:border-amber-400 transition-all active:scale-[0.99]"
+    >
+      <div className="flex items-center gap-3">
+        {s.photo_url ? (
+          <img src={s.photo_url} alt={s.name} className="w-12 h-12 rounded-xl object-cover border border-slate-100" />
+        ) : (
+          <div className="w-12 h-12 rounded-xl bg-slate-100 border flex items-center justify-center text-xl font-bold text-slate-400">
+            {s.name ? s.name[0] : '👤'}
+          </div>
+        )}
 
-                            <div className="space-y-0.5">
-                              <div className="flex items-center gap-2">
-                                <span className="font-extrabold text-sm text-slate-800">{s.name}</span>
-                                <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold">
-                                  {s.group_name || '조 미정'}
-                                </span>
-                              </div>
+        <div className="space-y-0.5">
+          <div className="flex items-center gap-2">
+            <span className="font-extrabold text-sm text-slate-800">{s.name}</span>
+            <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold">
+              {s.group_name || '조 미정'}
+            </span>
+          </div>
 
-                              <div className="text-[11px] text-slate-500">
-                                {s.age ? `만 ${s.age}세` : '나이미상'} · {s.gender || '성별미상'}
-                              </div>
+          <div className="text-[11px] text-slate-500">
+            {s.age ? `만 ${s.age}세` : '나이미상'} · {s.gender || '성별미상'}
+          </div>
 
-                              <div className="text-[10px] text-slate-400 line-clamp-1">
-                                🧗 경력: {survey?.climbing_exp || s.climbing_exp || '미입력'}
-                              </div>
-                            </div>
-                          </div>
+          {/* 🧗 경력 표시 - survey?.climbing_exp 바인딩 */}
+          <div className="text-[10px] text-slate-400 line-clamp-1">
+            🧗 경력: {survey?.climbing_exp || '미입력'}
+          </div>
+        </div>
+      </div>
 
-                          <div className="text-right flex flex-col items-end gap-1">
-                            {myEval ? (
-                              <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
-                                채점완료 ✓
-                              </span>
-                            ) : (
-                              <span className="text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 rounded-full">
-                                채점대기
-                              </span>
-                            )}
-                            <span className="text-slate-300 text-xs font-bold">&gt;</span>
-                          </div>
-                        </div>
+      <div className="text-right flex flex-col items-end gap-1">
+        {myEval ? (
+          <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
+            채점완료 ✓
+          </span>
+        ) : (
+          <span className="text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 rounded-full">
+            채점대기
+          </span>
+        )}
+        <span className="text-slate-300 text-xs font-bold">&gt;</span>
+      </div>
+    </div>
                       );
-                    })
+                    }
+                                        )
                   )}
                 </div>
               </div>
@@ -894,19 +896,16 @@ if (stdData) setStudents(stdData);
                 )}
 
                 {/* MODAL TAB 2: 사전 설문 */}
-             {modalTab === 'survey' && (
+            {modalTab === 'survey' && (
   <div className="space-y-3 pt-1 text-xs">
     {(() => {
-      const rawSurvey = selectedStudent.student_surveys;
-      const survey = Array.isArray(rawSurvey) ? rawSurvey[0] : rawSurvey;
+      // 헬퍼 함수 활용
+      const survey = getSurveyData(selectedStudent);
 
       if (!survey) {
         return (
           <div className="text-center py-8 text-slate-400 bg-slate-50 rounded-xl border border-dashed">
             등록된 사전 설문 데이터가 없습니다.
-            <div className="text-[10px] mt-1 text-slate-300">
-              (students.id = {selectedStudent.id})
-            </div>
           </div>
         );
       }
