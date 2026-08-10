@@ -161,6 +161,12 @@
           const { data: instData } = await supabase.from('instructors').select('*');
           if (instData) setInstructorList(instData);
 
+          const { data: stdData, error: stdErr } = await supabase
+  .from('students')
+  .select('*, student_surveys(*)');
+
+console.log("불러온 교육생 데이터:", stdData);
+
           const { data: gmData } = await supabase.from('group_managers').select('*');
           if (gmData) {
             const instMap = {};
