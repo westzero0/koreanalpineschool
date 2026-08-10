@@ -141,7 +141,7 @@ const scoreToGrade = (score) => {
 const CATEGORY_KEYS = {
   climbing: ['climb_beltKnot', 'climb_footWork', 'climb_handWork', 'climb_stability', 'climb_composure'],
   secondBelay: ['sb_anchorSetup', 'sb_deviceSetup', 'sb_ropePull', 'sb_ropeManage', 'sb_lowering'],
-  leadBelay: ['lb_deviceSetup', 'lb_shuffle', 'lb_brakeHand', 'lb_stability'],
+  leadingBelay: ['lb_deviceSetup', 'lb_shuffle', 'lb_brakeHand', 'lb_stability'],
   rappelling: ['rp_ropeSetup', 'rp_ropeFix', 'rp_harnessConnect', 'rp_stopCheck', 'rp_ascending', 'rp_proficiency'],
 };
 
@@ -690,8 +690,13 @@ const CATEGORY_KEYS = {
             )}
 
      {activeTab === 'admin' && (() => {
-  // 1. 헬퍼 함수 정의
-
+// L 점수일 때만 빨간색 ⚠️ 태그로 보여주는 함수
+const renderGrade = (grade) => {
+  if (grade === 'L') {
+    return <span className="text-red-600 font-black bg-red-50 px-1 rounded border border-red-200">⚠️ L</span>;
+  }
+  return <span className="font-extrabold text-slate-800">{grade}</span>;
+};
 
   const scoreToGrade = (score) => {
     const num = Number(score);
@@ -701,12 +706,6 @@ const CATEGORY_KEYS = {
     return '-';
   };
 
-  const CATEGORY_KEYS = {
-    climbing: ['cb_harness', 'cb_foot', 'cb_hand', 'cb_stability', 'cb_margin'],
-    secondBelay: ['sb_anchor', 'sb_install', 'sb_ropePull', 'sb_ropeSort', 'sb_lowering'],
-    leadingBelay: ['lb_device', 'lb_shuffle', 'lb_handPos', 'lb_stability'],
-    rappelling: ['rp_ropeInstall', 'rp_ropeFix', 'rp_connect', 'rp_stop', 'rp_ascending', 'rp_skill'],
-  };
 
   // 2. 학생 데이터 집계 및 계산
   const calculatedList = (students || [])
@@ -797,13 +796,13 @@ const CATEGORY_KEYS = {
               </div>
 
               <div className="flex items-center gap-3 text-right">
-                <div className="text-[10px] text-slate-600 grid grid-cols-2 gap-x-2 gap-y-1 border-r pr-3 hidden sm:grid">
-                  <div>등반: <span className="font-extrabold text-slate-800">{s.grades.climbing}</span></div>
-                  <div>세컨: <span className="font-extrabold text-slate-800">{s.grades.secondBelay}</span></div>
-                  <div>리딩: <span className="font-extrabold text-slate-800">{s.grades.leadingBelay}</span></div>
-                  <div>하강: <span className="font-extrabold text-slate-800">{s.grades.rappelling}</span></div>
-                  <div className="col-span-2 text-left">보행: <span className="font-extrabold text-slate-800">{s.grades.walking}</span></div>
-                </div>
+             <div className="text-[10px] text-slate-600 grid grid-cols-2 gap-x-2 gap-y-1 border-r pr-3 hidden sm:grid">
+  <div>등반: {renderGrade(s.grades.climbing)}</div>
+  <div>세컨: {renderGrade(s.grades.secondBelay)}</div>
+  <div>리딩: {renderGrade(s.grades.leadingBelay)}</div>
+  <div>하강: {renderGrade(s.grades.rappelling)}</div>
+  <div className="col-span-2 text-left">보행: {renderGrade(s.grades.walking)}</div>
+</div>
 
                 <div className="bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 text-center min-w-[55px]">
                   <span className="text-[9px] text-slate-400 block font-bold">평균</span>
@@ -839,7 +838,9 @@ const CATEGORY_KEYS = {
       </div>
     </div>
   );
-})()}
+}
+                               
+                               )()}
             
           </main>
 
