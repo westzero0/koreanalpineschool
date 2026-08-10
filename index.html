@@ -154,6 +154,8 @@
       const [evalResults, setEvalResults] = useState({});
       const [evalNote, setEvalNote] = useState('');
 
+      const [selectedGroupViewStudent, setSelectedGroupViewStudent] = useState(null);
+
       const touchStartX = useRef(0);
       const touchEndX = useRef(0);
 
@@ -652,7 +654,7 @@
                 return (
                   <div 
                     key={s.id}
-                    onClick={() => handleOpenStudentModal(s)}
+                    onClick={() => setSelectedGroupViewStudent(s)}
                     className="bg-slate-50 hover:bg-amber-50/40 p-3 rounded-xl border border-slate-200/80 transition-all cursor-pointer flex items-center justify-between gap-3 group"
                   >
                     <div className="flex items-center gap-2.5">
@@ -694,6 +696,117 @@
   </div>
 )}
 
+
+            {selectedGroupViewStudent && (() => {
+  const s = selectedGroupViewStudent;
+  const survey = getSurveyData(s);
+  const studentEvs = Object.entries(evaluations[s.id] || {});
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-5 space-y-4 shadow-xl">
+        {/* 모달 헤더 */}
+        <div className="flex justify-between items-center border-b pb-3">
+          <div className="flex items-center gap-3">
+            {s.photo_url ? (
+              <img src={s.photo_url} alt={s.name} className="w-12 h-12 rounded-xl object-cover border" />
+            ) : (
+              <div className="w-12 h-12 rounded-xl bg-slate-200 flex items-center justify-center font-bold text-slate-600 text-sm">
+                {s.name[0]}
+              </div>
+            )}
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-base text-slate-900">{s.name}</span>
+                {renderLevelBadge(s.level || survey?.level)}
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {s.group_name || '조 미정'} | 경력: {survey?.experience || '정보 없음'}
+              </p>
+            </div>
+          </div>
+          <button 
+            onClick={() => setSelectedGroupViewStudent(null)}
+            className="text-slate-400 hover:text-slate-700 text-lg font-bold p-1"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* 1. 평가 결과 요약 */}
+        <div className="space-y-3">
+          <h3 className="font-extrabold text-sm text-slate-800 flex items-center gap-1.5">
+            📊 과목별 평가 결과
+          </h3>
+          {studentEvs.length === 0 ? (
+            <div className="text-center py-6 bg-slate-50 rounded-xl text-slate-400 text-xs border border-dashed">
+              등록된 평가 결과가 없습니다.
+            </div>
+          ) : (
+            studentEvs.map(([inst, ev]) => (
+              <div key={inst} className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                <span className="font-bold text-xs text-indigo-600">👤 평가 강사: {inst}</span>
+                <div className="grid grid-cols-5 gap-1.5 text-center">
+                  {[
+                    { label: '등반', val: ev.results?.climbingResult },
+                    { label: '세컨', val: ev.results?.secondBelayResult },
+                    { label: '리딩', val: ev.results?.leadingBelayResult },
+                    { label: '하강', val: ev.results?.rappellingResult },
+                    { label: '보행', val: ev.results?.walkingResult },
+                  ].map((item, idx) => (
+                    <div key={idx} className="bg-white border border-slate-200 rounded-lg py-1.5 px-0.5">
+                      <span className="text-[10px] font-medium text-slate-400 block">{item.label}</span>
+                      <span className={`text-xs font-black mt-0.5 block ${
+                        item.val === 'H' ? 'text-indigo-600' :
+                        item.val === 'M' ? 'text-slate-700' :
+                        item.val === 'L' ? 'text-red-600' : 'text-slate-300'
+                      }`}>
+                        {item.val || '-'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* 2. 사전 설문 내용 */}
+        <div className="space-y-2 pt-2 border-t">
+          <h3 className="font-extrabold text-sm text-slate-800 flex items-center gap-1.5">
+            📋 사전 설문 내용
+          </h3>
+          <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2 text-xs text-slate-700">
+            <div>
+              <span className="font-bold text-slate-400 block text-[10px]">클라이밍 경력 및 수준</span>
+              <p className="mt-0.5 font-medium">{survey?.experience || '작성된 내용이 없습니다.'}</p>
+            </div>
+            <div>
+              <span className="font-bold text-slate-400 block text-[10px]">교육 참여 목표</span>
+              <p className="mt-0.5 font-medium">{survey?.goal || '작성된 내용이 없습니다.'}</p>
+            </div>
+            {survey?.memo && (
+              <div>
+                <span className="font-bold text-slate-400 block text-[10px]">기타 특이사항</span>
+                <p className="mt-0.5 font-medium">{survey.memo}</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 닫기 버튼 */}
+        <button
+          onClick={() => setSelectedGroupViewStudent(null)}
+          className="w-full bg-slate-900 text-white font-bold py-2.5 rounded-xl text-xs hover:bg-slate-800 transition-colors"
+        >
+          확인
+        </button>
+      </div>
+    </div>
+  );
+})()}
+
+            
             {activeTab === 'admin' && (
               <div className="space-y-6">
                 <div className="space-y-3">
