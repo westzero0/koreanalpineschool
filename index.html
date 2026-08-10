@@ -820,7 +820,7 @@ const handleInstructorChange = async (groupId, instructorName) => {
 
             {activeTab === 'allGroup' && (
               <div className="space-y-4">
-                {groups.map(grp => {
+                {groupList.map(grp => {
                   const groupStudents = students.filter(s => s.group_name === grp);
                   const assignedInst = groupInstructors[grp] || '미지정';
 
@@ -1002,7 +1002,7 @@ return (
                     className="text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200 rounded-md px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
                   >
                     <option value="">조 미정</option>
-                    {groups?.map((g) => (
+                    {groupList?.map((g) => (
                       <option key={g.id} value={g.name}>
                         {g.name}
                       </option>
@@ -1068,7 +1068,7 @@ return (
       </div>
 
       <div className="space-y-3">
-        {groups.map((g) => {
+        {groupList.map((g) => {
           const assignedStudents = students.filter((s) => s.group_name === g.name);
           const isEditing = editingGroupId === g.id;
 
