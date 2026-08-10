@@ -28,7 +28,6 @@
     const SUPABASE_ANON_KEY = 'sb_publishable_0qx2MvW4AsHrQeHrK7OmzA_kcxFr9yi';
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // 고유 Key 정의
     const EVAL_STRUCTURE = {
       climbing: {
         title: '🧗 1. 등반',
@@ -83,6 +82,17 @@
 
     const RATING_SCORES = { 'H': 3, 'M': 2, 'L': 1, 'P': 3, 'F': 1 };
 
+    // 사전 등급 배지 렌더링 헬퍼 함수 (advance / inter / basic)
+    const renderLevelBadge = (level) => {
+      const lvl = (level || 'basic').toLowerCase();
+      if (lvl === 'advance' || lvl === 'advanced') {
+        return <span className="text-[10px] bg-purple-100 text-purple-800 border border-purple-300 px-1.5 py-0.5 rounded font-black">ADVANCE</span>;
+      } else if (lvl === 'inter' || lvl === 'intermediate') {
+        return <span className="text-[10px] bg-blue-100 text-blue-800 border border-blue-300 px-1.5 py-0.5 rounded font-black">INTER</span>;
+      }
+      return <span className="text-[10px] bg-slate-100 text-slate-700 border border-slate-300 px-1.5 py-0.5 rounded font-bold">BASIC</span>;
+    };
+
     const getSurveyData = (student) => {
       if (!student || !student.student_surveys) return null;
       if (Array.isArray(student.student_surveys)) {
@@ -124,22 +134,12 @@
       const touchStartX = useRef(0);
       const touchEndX = useRef(0);
 
-      const handleTouchStart = (e) => {
-        touchStartX.current = e.targetTouches[0].clientX;
-      };
-
-      const handleTouchMove = (e) => {
-        touchEndX.current = e.targetTouches[0].clientX;
-      };
-
+      const handleTouchStart = (e) => { touchStartX.current = e.targetTouches[0].clientX; };
+      const handleTouchMove = (e) => { touchEndX.current = e.targetTouches[0].clientX; };
       const handleTouchEnd = () => {
         const distance = touchEndX.current - touchStartX.current;
-        if (touchStartX.current > 0 && touchEndX.current > 0 && distance > 60) {
-          setIsMyGroupOpen(true);
-        }
-        if (touchStartX.current > 0 && touchEndX.current > 0 && distance < -60) {
-          setIsMyGroupOpen(false);
-        }
+        if (touchStartX.current > 0 && touchEndX.current > 0 && distance > 60) setIsMyGroupOpen(true);
+        if (touchStartX.current > 0 && touchEndX.current > 0 && distance < -60) setIsMyGroupOpen(false);
         touchStartX.current = 0;
         touchEndX.current = 0;
       };
@@ -196,9 +196,7 @@
         }
       };
 
-      useEffect(() => {
-        fetchData();
-      }, []);
+      useEffect(() => { fetchData(); }, []);
 
       const handleSaveInstructorName = async () => {
         if (!tempName.trim()) return alert('성함을 입력해주세요.');
@@ -231,7 +229,6 @@
         }
       };
 
-      // 입력 시 화면 상태만 변경 (실시간 저장 기능 제거)
       const handleSubFieldChange = (key, val) => {
         setEvalDetails(prev => ({ ...prev, [key]: val }));
       };
@@ -240,10 +237,8 @@
         setEvalResults(prev => ({ ...prev, [resKey]: val }));
       };
 
-      // [저장하기] 버튼 클릭 시 한 번에 저장
       const handleManualSave = async () => {
         if (!selectedStudent || !instructorName) return;
-        
         setSaving(true);
 
         const payload = {
@@ -252,7 +247,6 @@
           details: evalDetails,
           results: evalResults,
           note: evalNote,
-          // null 방지를 위해 값이 없으면 기본값 'M' 할당
           climbing_score: RATING_SCORES[evalResults.climbingResult] || 2,
           second_belay_score: RATING_SCORES[evalResults.secondBelayResult] || 2,
           leading_belay_score: RATING_SCORES[evalResults.leadBelayResult] || 2,
@@ -268,7 +262,6 @@
 
           if (error) throw error;
 
-          // 프론트엔드 상태 업데이트
           setEvaluations(prev => ({
             ...prev,
             [selectedStudent.id]: {
@@ -347,7 +340,7 @@
                   ⛰️ 등반 교육 평가 시스템
                   {loading && <span className="text-[10px] text-slate-400 font-normal animate-pulse">(동기화 중...)</span>}
                 </h1>
-                <p className="text-[10px] text-slate-400">👉 우측으로 스와이프하면 [내 담당 조] 확인 가능</p>
+                <p className="text-[10px] text-slate-400">👉 우측 스와이프: [내 담당 조] 확인</p>
               </div>
               <button 
                 onClick={() => setIsConfig(true)}
@@ -391,9 +384,6 @@
                     className="w-full p-3 pl-10 bg-white border border-slate-300 rounded-2xl text-xs font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
                   />
                   <span className="absolute left-3.5 top-3 text-slate-400 text-xs">🔎</span>
-                  {searchQuery && (
-                    <button onClick={() => setSearchQuery('')} className="absolute right-3.5 top-2.5 text-slate-400 text-xs bg-slate-100 rounded-full w-5 h-5">✕</button>
-                  )}
                 </div>
 
                 <div className="space-y-2.5">
@@ -422,11 +412,13 @@
                             )}
 
                             <div className="space-y-0.5">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1.5">
                                 <span className="font-extrabold text-sm text-slate-800">{s.name}</span>
                                 <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold">
                                   {s.group_name || '조 미정'}
                                 </span>
+                                {/* 사전 평가 등급 배지 추가 */}
+                                {renderLevelBadge(s.level || survey?.level)}
                               </div>
 
                               <div className="text-[11px] text-slate-500">
@@ -479,6 +471,7 @@
                       <div className="space-y-2">
                         {groupStudents.map(s => {
                           const studentEvs = Object.entries(evaluations[s.id] || {});
+                          const survey = getSurveyData(s);
                           return (
                             <div 
                               key={s.id}
@@ -486,7 +479,10 @@
                               className="bg-slate-50 p-3 rounded-xl border space-y-2 cursor-pointer hover:bg-slate-100"
                             >
                               <div className="flex justify-between items-center">
-                                <span className="font-bold text-sm text-slate-800">{s.name} ({s.age ? `${s.age}세` : '나이미상'})</span>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-bold text-sm text-slate-800">{s.name}</span>
+                                  {renderLevelBadge(s.level || survey?.level)}
+                                </div>
                                 <span className="text-[11px] text-indigo-600 font-bold">평가 강사: {studentEvs.length}명</span>
                               </div>
 
@@ -542,10 +538,7 @@
                     </div>
 
                     <div className="bg-white p-3.5 rounded-xl border space-y-3 shadow-sm">
-                      <div className="font-bold text-xs text-indigo-900 flex justify-between items-center">
-                        <span>1. 조별 담당 강사 매칭</span>
-                        <span className="text-[10px] text-slate-400 font-normal">* 중복 배정 방지</span>
-                      </div>
+                      <div className="font-bold text-xs text-indigo-900 border-b pb-1">1. 조별 담당 강사 매칭</div>
                       <div className="space-y-2">
                         {groups.map(g => {
                           const currentSelectedInst = editingInstructors[g] || '';
@@ -575,19 +568,16 @@
                     </div>
 
                     <div className="bg-white p-3.5 rounded-xl border space-y-3 shadow-sm">
-                      <div className="font-bold text-xs text-indigo-900">2. 교육생 조 편성</div>
+                      <div className="font-bold text-xs text-indigo-900 border-b pb-1">2. 교육생 조 편성</div>
                       <div className="space-y-2">
                         {students.map((s, idx) => {
-                          const survey = Array.isArray(s.student_surveys) ? s.student_surveys[0] : s.student_surveys;
+                          const survey = getSurveyData(s);
                           return (
                             <div key={s.id} className="bg-slate-50 p-2.5 rounded-xl border text-xs space-y-1.5">
                               <div className="flex justify-between items-center">
                                 <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                                  <span className="bg-slate-200 text-slate-700 text-[10px] px-1.5 py-0.5 rounded">No.{s.no || idx + 1}</span>
                                   <span>{s.name}</span>
-                                  <span className="text-[11px] text-slate-500 font-normal">
-                                    ({s.age ? `만 ${s.age}세` : '나이미상'} / {s.gender || '성별미상'})
-                                  </span>
+                                  {renderLevelBadge(s.level || survey?.level)}
                                 </div>
                                 <select 
                                   value={editingGroups[s.id] || s.group_name || '미정'}
@@ -600,9 +590,6 @@
                                   ))}
                                 </select>
                               </div>
-                              <div className="text-[10px] text-slate-500 bg-white p-1.5 rounded border">
-                                <div><b>등반 경력:</b> {survey?.climbing_exp || s.climbing_exp || '미입력'}</div>
-                              </div>
                             </div>
                           );
                         })}
@@ -614,6 +601,7 @@
             )}
           </main>
 
+          {/* 내 담당 조 서랍(Drawer) */}
           <div className={`fixed inset-y-0 left-0 z-40 w-80 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out border-r ${isMyGroupOpen ? 'translate-x-0' : '-translate-x-full'}`}>
             <div className="p-4 bg-slate-900 text-white flex justify-between items-center">
               <div>
@@ -642,7 +630,7 @@
 
                       <div className="space-y-1.5">
                         {groupStudents.map(s => {
-                          const myEval = evaluations[s.id]?.[instructorName];
+                          const survey = getSurveyData(s);
                           return (
                             <div 
                               key={s.id} 
@@ -653,16 +641,11 @@
                               className="bg-white p-2.5 rounded-xl border flex items-center justify-between cursor-pointer hover:bg-amber-50/50"
                             >
                               <div className="flex items-center gap-2">
-                                {s.photo_url ? (
-                                  <img src={s.photo_url} alt="" className="w-8 h-8 rounded-lg object-cover" />
-                                ) : (
-                                  <div className="w-8 h-8 rounded-lg bg-slate-100 border flex items-center justify-center text-xs font-bold text-slate-400">
-                                    {s.name ? s.name[0] : '👤'}
-                                  </div>
-                                )}
                                 <div>
-                                  <div className="font-bold text-xs text-slate-800">{s.name}</div>
-                                  <div className="text-[9px] text-slate-400">{s.age ? `만 ${s.age}세` : ''}</div>
+                                  <div className="font-bold text-xs text-slate-800 flex items-center gap-1">
+                                    {s.name}
+                                    {renderLevelBadge(s.level || survey?.level)}
+                                  </div>
                                 </div>
                               </div>
                               <span className="text-[10px] text-amber-600 font-bold">&gt;</span>
@@ -677,44 +660,14 @@
             </div>
           </div>
 
-          {isMyGroupOpen && (
-            <div onClick={() => setIsMyGroupOpen(false)} className="fixed inset-0 bg-black/40 z-30 transition-opacity"></div>
-          )}
-
-          {isConfig && (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-              <div className="bg-white rounded-2xl p-5 w-full max-w-xs space-y-4 shadow-2xl">
-                <h3 className="font-bold text-base text-slate-800 text-center">👤 강사 성함 설정</h3>
-                <p className="text-xs text-slate-500 text-center">채점 기록 저장을 위해 성함을 입력해주세요.</p>
-                <input 
-                  type="text" 
-                  placeholder="예: 홍길동" 
-                  value={tempName}
-                  onChange={e => setTempName(e.target.value)}
-                  className="w-full p-2.5 border rounded-xl text-sm text-center font-bold"
-                />
-                <button onClick={handleSaveInstructorName} className="w-full bg-slate-900 text-white font-bold py-2.5 rounded-xl text-sm">
-                  확인 및 접속
-                </button>
-              </div>
-            </div>
-          )}
-
           {selectedStudent && (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
               <div className="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-5 space-y-4 shadow-2xl">
                 
                 <div className="flex justify-between items-center border-b pb-3">
                   <div className="flex items-center gap-3">
-                    {selectedStudent.photo_url ? (
-                      <img src={selectedStudent.photo_url} alt="" className="w-10 h-10 rounded-xl object-cover" />
-                    ) : (
-                      <div className="w-10 h-10 rounded-xl bg-slate-100 border flex items-center justify-center font-bold text-slate-400">
-                        {selectedStudent.name[0]}
-                      </div>
-                    )}
                     <div>
-                      <h3 className="font-extrabold text-base text-slate-800 flex items-center gap-2">
+                      <h3 className="font-extrabold text-base text-slate-800 flex items-center gap-1.5">
                         {selectedStudent.name}
                         <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-bold">
                           {selectedStudent.group_name || '미정'}
@@ -726,6 +679,17 @@
                     </div>
                   </div>
                   <button onClick={() => setSelectedStudent(null)} className="text-slate-400 text-xl font-bold p-1">✕</button>
+                </div>
+
+                {/* 채점 모달 내부 상단 요약 정보에 사전 등급 노출 */}
+                <div className="bg-indigo-50/80 p-2.5 rounded-xl text-xs flex justify-between items-center border border-indigo-100">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold text-indigo-900">사전 등급:</span>
+                    {renderLevelBadge(selectedStudent.level || getSurveyData(selectedStudent)?.level)}
+                  </div>
+                  <span className="text-[11px] text-indigo-700 font-medium">
+                    경력: {getSurveyData(selectedStudent)?.climbing_exp || selectedStudent.climbing_exp || '미입력'}
+                  </span>
                 </div>
 
                 <div className="flex border-b text-xs font-bold">
@@ -745,8 +709,6 @@
 
                 {modalTab === 'score' && (
                   <div className="space-y-4 pt-1">
-                    <p className="text-xs text-slate-400">항목 선택 후 하단의 [저장하기] 버튼을 눌러주세요.</p>
-
                     {Object.entries(EVAL_STRUCTURE).map(([categoryKey, category]) => (
                       <div key={categoryKey} className="bg-slate-50 p-3.5 rounded-xl border space-y-3">
                         <div className="font-extrabold text-xs text-slate-900 border-b pb-1.5 flex justify-between items-center">
@@ -874,22 +836,6 @@
                             <p className="text-slate-700 bg-white p-2 rounded border mt-0.5">
                               {survey.climbing_exp || '미입력'}
                             </p>
-                          </div>
-                          <div className="bg-slate-50 p-3 rounded-xl border space-y-1">
-                            <span className="font-bold text-indigo-900">🥾 등산 경력 및 빈도</span>
-                            <div className="bg-white p-2 rounded border text-slate-700 space-y-1 mt-0.5">
-                              <div><b>등산 경력:</b> {survey.hiking_exp || '미입력'}</div>
-                              <div><b>등반 빈도:</b> {survey.climbing_freq || '미입력'}</div>
-                              <div><b>최고 난이도:</b> {survey.climbing_grade || '미입력'}</div>
-                            </div>
-                          </div>
-                          <div className="bg-slate-50 p-3 rounded-xl border space-y-1">
-                            <span className="font-bold text-indigo-900">⚓ 빌레이 및 매듭 기술</span>
-                            <div className="bg-white p-2 rounded border text-slate-700 space-y-1 mt-0.5">
-                              <div><b>후등 빌레이:</b> {survey.belay_follow || '미입력'}</div>
-                              <div><b>선등 빌레이:</b> {survey.belay_lead || '미입력'}</div>
-                              <div><b>매듭 수행:</b> {survey.knot_skill || '미입력'}</div>
-                            </div>
                           </div>
                         </div>
                       );
