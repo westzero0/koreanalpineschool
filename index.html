@@ -200,6 +200,121 @@ useEffect(() => {
   fetchGroups();
 }, []);
 
+
+
+      // State 설정
+const [groups, setGroups] = useState([]); // groups 테이블 데이터
+const [instructors, setInstructors] = useState([]); // instructors 테이블 데이터
+const [students, setStudents] = useState([]); // students 테이블 데이터
+const [editingGroupId, setEditingGroupId] = useState(null); // 수정 중인 조 ID
+const [editingName, setEditingName] = useState(''); // 수정 중인 조 이름 input
+
+// 1. 조 추가 (DB insert)
+const handleAddGroup = async () => {
+  const nextNumber = groups.length + 1;
+  const newGroupName = `${nextNumber}조`;
+
+  try {
+    const { data, error } = await supabase
+      .from('groups')
+      .insert([{ name: newGroupName }])
+      .select();
+
+    if (error) throw error;
+    if (data) {
+      setGroups((prev) => [...prev, ...data]);
+    }
+  } catch (err) {
+    console.error('조 추가 실패:', err);
+    alert('조 추가 실패: ' + err.message);
+  }
+};
+
+// 2. 조 삭제 (DB delete)
+const handleDeleteGroup = async (groupId, groupName) => {
+  if (!confirm(`'${groupName}'을(를) 삭제하시겠습니까?`)) return;
+
+  try {
+    const { error } = await supabase
+      .from('groups')
+      .delete()
+      .eq('id', groupId);
+
+    if (error) throw error;
+
+    // 해당 조에 배정되어 있던 학생들의 group_name을 빈 값으로 변경
+    await supabase
+      .from('students')
+      .update({ group_name: '' })
+      .eq('group_name', groupName);
+
+    setGroups((prev) => prev.filter((g) => g.id !== groupId));
+    setStudents((prev) =>
+      prev.map((s) => (s.group_name === groupName ? { ...s, group_name: '' } : s))
+    );
+  } catch (err) {
+    console.error('조 삭제 실패:', err);
+    alert('조 삭제 실패: ' + err.message);
+  }
+};
+
+// 3. 조 이름 수정 저장 (DB update & 소속 학생 group_name 일괄 업데이트)
+const handleSaveGroupName = async (groupId, oldName) => {
+  if (!editingName.trim()) {
+    alert('조 이름을 입력해 주세요.');
+    return;
+  }
+
+  try {
+    // groups 테이블 이름 업데이트
+    const { error: groupErr } = await supabase
+      .from('groups')
+      .update({ name: editingName })
+      .eq('id', groupId);
+
+    if (groupErr) throw groupErr;
+
+    // 기존 조에 속해있던 학생들의 group_name도 변경된 이름으로 업데이트
+    if (oldName) {
+      await supabase
+        .from('students')
+        .update({ group_name: editingName })
+        .eq('group_name', oldName);
+
+      setStudents((prev) =>
+        prev.map((s) => (s.group_name === oldName ? { ...s, group_name: editingName } : s))
+      );
+    }
+
+    setGroups((prev) =>
+      prev.map((g) => (g.id === groupId ? { ...g, name: editingName } : g))
+    );
+    setEditingGroupId(null);
+  } catch (err) {
+    console.error('조 이름 수정 실패:', err);
+    alert('조 이름 수정 실패: ' + err.message);
+  }
+};
+
+// 4. 담당 강사 변경 (DB update)
+const handleInstructorChange = async (groupId, instructorName) => {
+  try {
+    const { error } = await supabase
+      .from('groups')
+      .update({ instructor_name: instructorName })
+      .eq('id', groupId);
+
+    if (error) throw error;
+
+    setGroups((prev) =>
+      prev.map((g) => (g.id === groupId ? { ...g, instructor_name: instructorName } : g))
+    );
+  } catch (err) {
+    console.error('담당 강사 지정 실패:', err);
+    alert('강사 지정 실패: ' + err.message);
+  }
+};
+
       
 
       const handleGroupChange = async (studentId, newGroup) => {
@@ -846,11 +961,12 @@ const calculatedList = (students || [])
   .sort((a, b) => b.totalScore - a.totalScore);
 
   // 3. UI 렌더링
- return (
+// 3. UI 렌더링
+return (
   <div className="space-y-6">
     {/* 1. 과목별 성적 순위표 */}
     <div className="space-y-3">
-      {/* 헤더 영역: 제목/설명과 우측 조작 버튼 배치 정돈 */}
+      {/* 헤더 영역: 제목/설명과 우측 조작 버튼 */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center gap-4">
         <div>
           <h2 className="font-extrabold text-sm text-slate-900">📊 과목별 성적 순위표</h2>
@@ -879,30 +995,28 @@ const calculatedList = (students || [])
                 {index + 1}
               </span>
               <div>
-               <div className="flex items-center gap-1.5">
-  <span className="font-bold text-sm text-slate-800">{s.name}</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-sm text-slate-800">{s.name}</span>
 
-  {/* span 감싸기 제거 및 옵셔널 체이닝(groups?.map) 적용 */}
-  <select
-    value={s.group_name || ''}
-    onChange={(e) => handleGroupChange(s.id || s.student_id, e.target.value)}
-    className="text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200 rounded-md px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
-  >
-    <option value="">조 미정</option>
-    {groups?.map((g) => (
-      <option key={g.id} value={g.name}>
-        {g.name}
-      </option>
-    ))}
-  </select>
-</div>
+                  <select
+                    value={s.group_name || ''}
+                    onChange={(e) => handleGroupChange(s.id || s.student_id, e.target.value)}
+                    className="text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200 rounded-md px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                  >
+                    <option value="">조 미정</option>
+                    {groups?.map((g) => (
+                      <option key={g.id} value={g.name}>
+                        {g.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <p className="text-[10px] text-slate-400 mt-0.5">평가 강사: {s.evalCount}명</p>
               </div>
             </div>
 
             {/* 오른쪽: 과목별 등급 그리드 + 평균점수 */}
             <div className="flex items-center gap-3 text-right">
-              {/* flex justify-between을 적용하여 과목명과 등급 출력을 좌우 양끝 정렬 고정 */}
               <div className="text-[10px] text-slate-600 grid grid-cols-2 gap-x-4 gap-y-1 border-r border-slate-100 pr-3 hidden sm:grid w-48">
                 <div className="flex justify-between items-center">
                   <span className="text-slate-400 shrink-0">등반</span>
@@ -926,7 +1040,6 @@ const calculatedList = (students || [])
                 </div>
               </div>
 
-              {/* 평균 점수 배지 */}
               <div className="bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 text-center min-w-[55px] shrink-0">
                 <span className="text-[9px] text-slate-400 block font-bold">평균</span>
                 <span className="text-sm font-black text-indigo-900">{s.totalScore}</span>
@@ -936,38 +1049,120 @@ const calculatedList = (students || [])
         ))}
       </div>
     </div>
-  </div>
-);
 
-      {/* 2. 조 및 강사 배정 섹션 */}
-      <div className="pt-4 border-t border-slate-200 space-y-4">
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-          <h2 className="font-extrabold text-sm text-slate-900 mb-1">👥 조 및 담당 강사 배정</h2>
-          <p className="text-[11px] text-slate-500 mb-4">각 조별 담당 강사를 지정하거나 수정합니다.</p>
-
-          <div className="space-y-3">
-            {(groups || ['1조', '2조', '3조', '4조']).map((group) => (
-              <div key={group} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-                <span className="font-bold text-xs text-slate-700">{group}</span>
-               <input
-        type="text"
-        placeholder="담당 강사명"
-        defaultValue={groupInstructors?.[group] || ''}
-        onBlur={(e) => handleSaveGroupInstructor(group, e.target.value)}
-        className="text-xs p-2 border border-slate-300 rounded-lg w-36 focus:outline-none focus:ring-1 focus:ring-amber-500"
-      />
-    </div>
-            ))}
-          </div>
+    {/* 2. 조 및 담당 강사 배정 */}
+    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4 max-w-2xl mx-auto">
+      <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+        <div>
+          <h2 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
+            🎥 조 및 담당 강사 배정
+          </h2>
+          <p className="text-xs text-slate-500 mt-0.5">
+            각 조별 담당 강사를 지정하고 소속 학생을 확인합니다.
+          </p>
         </div>
+        <button
+          onClick={handleAddGroup}
+          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl transition-colors shadow-sm"
+        >
+          + 조 추가
+        </button>
+      </div>
+
+      <div className="space-y-3">
+        {groups.map((g) => {
+          const assignedStudents = students.filter((s) => s.group_name === g.name);
+          const isEditing = editingGroupId === g.id;
+
+          return (
+            <div key={g.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  {isEditing ? (
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        value={editingName}
+                        onChange={(e) => setEditingName(e.target.value)}
+                        className="w-24 px-2 py-1 text-xs font-bold border border-indigo-400 rounded-lg focus:outline-none bg-white"
+                      />
+                      <button
+                        onClick={() => handleSaveGroupName(g.id, g.name)}
+                        className="px-2 py-1 text-[11px] bg-indigo-600 text-white font-semibold rounded-md hover:bg-indigo-700"
+                      >
+                        저장
+                      </button>
+                      <button
+                        onClick={() => setEditingGroupId(null)}
+                        className="px-2 py-1 text-[11px] bg-slate-200 text-slate-600 font-semibold rounded-md hover:bg-slate-300"
+                      >
+                        취소
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-extrabold text-sm text-slate-800">{g.name}</span>
+                      <button
+                        onClick={() => {
+                          setEditingGroupId(g.id);
+                          setEditingName(g.name);
+                        }}
+                        className="text-[11px] text-slate-400 hover:text-indigo-600 font-semibold px-1.5 py-0.5 rounded hover:bg-slate-200/60 transition-colors"
+                      >
+                        ✏️ 수정
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <select
+                    value={g.instructor_name || ''}
+                    onChange={(e) => handleInstructorChange(g.id, e.target.value)}
+                    className="text-xs font-semibold bg-white border border-slate-300 text-slate-800 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-2xs"
+                  >
+                    <option value="">담당 강사 선택</option>
+                    {instructors.map((ins) => (
+                      <option key={ins.id} value={ins.name}>
+                        {ins.name}
+                      </option>
+                    ))}
+                  </select>
+
+                  <button
+                    onClick={() => handleDeleteGroup(g.id, g.name)}
+                    className="text-xs text-slate-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
+                    title="조 삭제"
+                  >
+                    🗑️
+                  </button>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-slate-200/60 flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] font-bold text-slate-400 mr-1">
+                  소속 학생 ({assignedStudents.length}명):
+                </span>
+                {assignedStudents.length === 0 ? (
+                  <span className="text-[11px] text-slate-400 italic">배정된 학생이 없습니다.</span>
+                ) : (
+                  assignedStudents.map((s) => (
+                    <span
+                      key={s.id || s.student_id}
+                      className="text-[11px] font-semibold bg-white border border-slate-200 text-slate-700 px-2 py-0.5 rounded-md shadow-2xs"
+                    >
+                      {s.name}
+                    </span>
+                  ))
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
-  );
-}
-                               
-                               )()}
-            
-          </main>
+  </div>
+);
 
           {/* 내 담당 조 서랍(Drawer) */}
           <div className={`fixed inset-y-0 left-0 z-40 w-80 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out border-r ${isMyGroupOpen ? 'translate-x-0' : '-translate-x-full'}`}>
