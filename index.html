@@ -390,7 +390,7 @@ const CATEGORY_KEYS = {
 
       
 
-      const rankedStudents = students
+  const rankedStudents = students
   .map((student) => {
     const evalData = evaluations[student.id] || evaluations[student.student_id];
     const studentEvals = Array.isArray(evalData)
@@ -407,35 +407,33 @@ const CATEGORY_KEYS = {
     }
 
     const count = studentEvals.length;
-
-    // 각 강사의 평가 건별로 P/F 비율에 따른 점수 산출
     let sumClimbing = 0, sumSecond = 0, sumLeading = 0, sumRappelling = 0, sumWalking = 0;
 
     studentEvals.forEach((evalItem) => {
       const details = evalItem.details || {};
+      const results = evalItem.results || {};
 
-      sumClimbing += calculateGradeFromDetails(details, CATEGORY_KEYS.climbing).score;
-      sumSecond += calculateGradeFromDetails(details, CATEGORY_KEYS.secondBelay).score;
-      sumLeading += calculateGradeFromDetails(details, CATEGORY_KEYS.leadingBelay).score;
-      sumRappelling += calculateGradeFromDetails(details, CATEGORY_KEYS.rappelling).score;
-
-      // 보행은 DB의 walking_score (3: H, 2: M, 1: L) 값 사용
-      sumWalking += Number(evalItem.walking_score) || 1;
+      sumClimbing += evalItem.climbing_score || calculateCategoryScore(details, CATEGORY_KEYS.climbing);
+      sumSecond += evalItem.second_belay_score || calculateCategoryScore(details, CATEGORY_KEYS.secondBelay);
+      sumLeading += evalItem.leading_belay_score || calculateCategoryScore(details, CATEGORY_KEYS.leadingBelay);
+      sumRappelling += evalItem.rappelling_score || calculateCategoryScore(details, CATEGORY_KEYS.rappelling);
+      
+      const wVal = results.walkingResult || evalItem.walkingResult;
+      sumWalking += evalItem.walking_score || (wVal ? ITEM_SCORES[wVal] : 0);
     });
 
-    const avgClimbing = (sumClimbing / count).toFixed(1);
-    const avgSecond = (sumSecond / count).toFixed(1);
-    const avgLeading = (sumLeading / count).toFixed(1);
-    const avgRappelling = (sumRappelling / count).toFixed(1);
-    const avgWalking = (sumWalking / count).toFixed(1);
+    const avgClimbing = sumClimbing / count;
+    const avgSecond = sumSecond / count;
+    const avgLeading = sumLeading / count;
+    const avgRappelling = sumRappelling / count;
+    const avgWalking = sumWalking / count;
 
     const totalScore = Number(
-      ((Number(avgClimbing) + Number(avgSecond) + Number(avgLeading) + Number(avgRappelling) + Number(avgWalking)) / 5).toFixed(1)
+      ((avgClimbing + avgSecond + avgLeading + avgRappelling + avgWalking) / 5).toFixed(1)
     );
 
     return {
       ...student,
-      // 관리자 화면 표기용 파트별 H/M/L 등급
       grades: {
         climbing: scoreToGrade(avgClimbing),
         secondBelay: scoreToGrade(avgSecond),
@@ -448,7 +446,6 @@ const CATEGORY_KEYS = {
     };
   })
   .sort((a, b) => b.totalScore - a.totalScore);
-
       
      return (
   <div 
