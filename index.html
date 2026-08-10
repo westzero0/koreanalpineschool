@@ -22,612 +22,607 @@
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useEffect, useRef } = React;
+const { useState, useEffect, useRef } = React;
 
-    const SUPABASE_URL = 'https://rfcnyfdhtmjvkdcipger.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_0qx2MvW4AsHrQeHrK7OmzA_kcxFr9yi';
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const SUPABASE_URL = 'https://rfcnyfdhtmjvkdcipger.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_0qx2MvW4AsHrQeHrK7OmzA_kcxFr9yi';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const EVAL_STRUCTURE = {
-      climbing: {
-        title: '🧗 1. 등반',
-        subFields: [
-          { key: 'climb_beltKnot', label: '벨트매듭', type: 'PF' },
-          { key: 'climb_footWork', label: '발사용', type: 'HML' },
-          { key: 'climb_handWork', label: '손사용', type: 'HML' },
-          { key: 'climb_stability', label: '안정성', type: 'HML' },
-          { key: 'climb_composure', label: '여유', type: 'HML' },
-        ]
-      },
-      secondBelay: {
-        title: '⚓ 2. 세컨 빌레이',
-        subFields: [
-          { key: 'sb_anchorSetup', label: '지점 세팅', type: 'PF' },
-          { key: 'sb_deviceSetup', label: '설치', type: 'PF' },
-          { key: 'sb_ropePull', label: '줄당기기', type: 'PF' },
-          { key: 'sb_ropeManage', label: '로프정리', type: 'PF' },
-          { key: 'sb_lowering', label: '하강', type: 'PF' },
-        ]
-      },
-      leadingBelay: {
-        title: '🧗‍♂️ 3. 리딩빌레이',
-        subFields: [
-          { key: 'lb_deviceSetup', label: '디바이스 설치', type: 'PF' },
-          { key: 'lb_shuffle', label: '셔플', type: 'PF' },
-          { key: 'lb_brakeHand', label: '제동손 위치', type: 'PF' },
-          { key: 'lb_stability', label: '안정성', type: 'HML' },
-        ]
-      },
-      rappelling: {
-        title: '🪢 4. 하강',
-        subFields: [
-          { key: 'rp_ropeSetup', label: '로프설치', type: 'PF' },
-          { key: 'rp_ropeFix', label: '로프고정', type: 'PF' },
-          { key: 'rp_harnessConnect', label: '체결', type: 'PF' },
-          { key: 'rp_stopCheck', label: '정지', type: 'PF' },
-          { key: 'rp_ascending', label: '어센딩', type: 'PF' },
-          { key: 'rp_proficiency', label: '능숙도', type: 'PF' },
-        ]
-      },
-      walking: {
-        title: '🥾 5. 보행',
-        subFields: [],
-        resultKey: 'walkingResult'
-      }
-    };
-
-    const ITEM_SCORES = { 'P': 3, 'H': 3, '상': 3, 'M': 2, '중': 2, 'F': 1, 'L': 1, '하': 1 };
-
-    const calculateCategoryScore = (details, keys) => {
-      if (!details || !keys || keys.length === 0) return 0;
-      let sum = 0;
-      let count = 0;
-      keys.forEach((key) => {
-        const val = details[key];
-        if (val && ITEM_SCORES[val]) {
-          sum += ITEM_SCORES[val];
-          count++;
-        }
-      });
-      return count > 0 ? sum / count : 0;
-    };
-
-    const scoreToGrade = (score) => {
-      const num = Number(score);
-      if (num >= 2.5) return 'H';
-      if (num >= 1.5) return 'M';
-      if (num > 0) return 'L';
-      return '-';
-    };
-
-    const CATEGORY_KEYS = {
-      climbing: ['climb_beltKnot', 'climb_footWork', 'climb_handWork', 'climb_stability', 'climb_composure'],
-      secondBelay: ['sb_anchorSetup', 'sb_deviceSetup', 'sb_ropePull', 'sb_ropeManage', 'sb_lowering'],
-      leadingBelay: ['lb_deviceSetup', 'lb_shuffle', 'lb_brakeHand', 'lb_stability'],
-      rappelling: ['rp_ropeSetup', 'rp_ropeFix', 'rp_harnessConnect', 'rp_stopCheck', 'rp_ascending', 'rp_proficiency'],
-    };
-
-    const renderLevelBadge = (level) => {
-      const lvl = (level || 'basic').toLowerCase();
-      if (lvl === 'advance' || lvl === 'advanced') {
-        return <span className="text-[10px] bg-purple-100 text-purple-800 border border-purple-300 px-1.5 py-0.5 rounded font-black">ADVANCE</span>;
-      } else if (lvl === 'inter' || lvl === 'intermediate') {
-        return <span className="text-[10px] bg-blue-100 text-blue-800 border border-blue-300 px-1.5 py-0.5 rounded font-black">INTER</span>;
-      }
-      return <span className="text-[10px] bg-slate-100 text-slate-700 border border-slate-300 px-1.5 py-0.5 rounded font-bold">BASIC</span>;
-    };
-
-    const getSurveyData = (student) => {
-      if (!student || !student.student_surveys) return null;
-      if (Array.isArray(student.student_surveys)) {
-        return student.student_surveys[0] || null;
-      }
-      return student.student_surveys;
-    };
-
-    function App() {
-      const [instructorName, setInstructorName] = useState(() => localStorage.getItem('instructorName') || '');
-      const [isConfig, setIsConfig] = useState(!localStorage.getItem('instructorName'));
-      const [tempName, setTempName] = useState('');
-      
-      const [activeTab, setActiveTab] = useState('allStudents');
-      const [isMyGroupOpen, setIsMyGroupOpen] = useState(false); 
-      
-      const [loading, setLoading] = useState(true);
-      const [saving, setSaving] = useState(false);
-
-      const [groups, setGroups] = useState([]);
-      const [instructors, setInstructors] = useState([]);
-      const [students, setStudents] = useState([]);
-      
-      const [editingGroupId, setEditingGroupId] = useState(null);
-      const [editingName, setEditingName] = useState('');
-
-      const [groupInstructors, setGroupInstructors] = useState({});
-      const [evaluations, setEvaluations] = useState({});
-
-      const [searchQuery, setSearchQuery] = useState('');
-      const [selectedStudent, setSelectedStudent] = useState(null);
-      const [modalTab, setModalTab] = useState('score'); 
-
-      const [evalDetails, setEvalDetails] = useState({});
-      const [evalResults, setEvalResults] = useState({});
-      const [evalNote, setEvalNote] = useState('');
-
-      const [selectedGroupViewStudent, setSelectedGroupViewStudent] = useState(null);
-
-      const touchStartX = useRef(0);
-      const touchEndX = useRef(0);
-
-      const handleTouchStart = (e) => { touchStartX.current = e.targetTouches[0].clientX; };
-      const handleTouchMove = (e) => { touchEndX.current = e.targetTouches[0].clientX; };
-      const handleTouchEnd = () => {
-        const distance = touchEndX.current - touchStartX.current;
-        if (touchStartX.current > 0 && touchEndX.current > 0 && distance > 60) setIsMyGroupOpen(true);
-        if (touchStartX.current > 0 && touchEndX.current > 0 && distance < -60) setIsMyGroupOpen(false);
-        touchStartX.current = 0;
-        touchEndX.current = 0;
-      };
-
-      const fetchData = async () => {
-        setLoading(true);
-        try {
-          const { data: grpData } = await supabase.from('groups').select('*');
-          if (grpData && grpData.length > 0) {
-            const sorted = grpData.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-            setGroups(sorted);
-          }
-
-          const { data: stdData, error: stdErr } = await supabase
-            .from('students')
-            .select('*, student_surveys!fk_student(*)');
-          if (stdErr) throw stdErr;
-          if (stdData) setStudents(stdData);
-          
-          const { data: instData } = await supabase.from('instructors').select('*');
-          if (instData) setInstructors(instData);
-
-          const { data: gmData } = await supabase.from('group_managers').select('*');
-          if (gmData) {
-            const instMap = {};
-            gmData.forEach(gm => {
-              if (gm.group_name && gm.instructor_name) instMap[gm.group_name] = gm.instructor_name;
-            });
-            setGroupInstructors(instMap);
-          }
-
-          const { data: evData } = await supabase.from('evaluations').select('*');
-          if (evData) {
-            const evMap = {};
-            evData.forEach(ev => {
-              if (!evMap[ev.student_id]) evMap[ev.student_id] = {};
-              evMap[ev.student_id][ev.instructor_name] = {
-                details: ev.details || {},
-                results: ev.results || {},
-                note: ev.note || '',
-                climbing_score: ev.climbing_score,
-                second_belay_score: ev.second_belay_score,
-                leading_belay_score: ev.leading_belay_score,
-                rappelling_score: ev.rappelling_score,
-                walking_score: ev.walking_score,
-                updatedAt: ev.updated_at
-              };
-            });
-            setEvaluations(evMap);
-          }
-        } catch (err) {
-          console.error("데이터 로딩 오류:", err);
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      useEffect(() => { fetchData(); }, []);
-
-      const handleAddGroup = async () => {
-        const nextNumber = groups.length + 1;
-        const newGroupName = `${nextNumber}조`;
-        try {
-          const { data, error } = await supabase.from('groups').insert([{ name: newGroupName }]).select();
-          if (error) throw error;
-          if (data) setGroups((prev) => [...prev, ...data]);
-        } catch (err) {
-          alert('조 추가 실패: ' + err.message);
-        }
-      };
-
-      const handleDeleteGroup = async (groupId, groupName) => {
-        if (!confirm(`'${groupName}'을(를) 삭제하시겠습니까?`)) return;
-        try {
-          const { error } = await supabase.from('groups').delete().eq('id', groupId);
-          if (error) throw error;
-          await supabase.from('students').update({ group_name: '' }).eq('group_name', groupName);
-          setGroups((prev) => prev.filter((g) => g.id !== groupId));
-          setStudents((prev) => prev.map((s) => (s.group_name === groupName ? { ...s, group_name: '' } : s)));
-        } catch (err) {
-          alert('조 삭제 실패: ' + err.message);
-        }
-      };
-
-      const handleSaveGroupName = async (groupId, oldName) => {
-        if (!editingName.trim()) return alert('조 이름을 입력해 주세요.');
-        try {
-          const { error: groupErr } = await supabase.from('groups').update({ name: editingName }).eq('id', groupId);
-          if (groupErr) throw groupErr;
-          if (oldName) {
-            await supabase.from('students').update({ group_name: editingName }).eq('group_name', oldName);
-            setStudents((prev) => prev.map((s) => (s.group_name === oldName ? { ...s, group_name: editingName } : s)));
-          }
-          setGroups((prev) => prev.map((g) => (g.id === groupId ? { ...g, name: editingName } : g)));
-          setEditingGroupId(null);
-        } catch (err) {
-          alert('조 이름 수정 실패: ' + err.message);
-        }
-      };
-
-    const handleInstructorChange = async (groupId, instructorName) => {
-  const targetGroup = groups.find(g => g.id === groupId);
-  if (!targetGroup) return;
-  const groupName = targetGroup.name;
-
-  try {
-    // groups 테이블 대신 group_managers 테이블에 upsert 수행
-    const { error } = await supabase.from('group_managers').upsert(
-      { group_name: groupName, instructor_name: instructorName },
-      { onConflict: 'group_name' }
-    );
-    if (error) throw error;
-
-    // 로컬 상태 업데이트
-    setGroupInstructors(prev => ({ ...prev, [groupName]: instructorName }));
-    setGroups((prev) => prev.map((g) => (g.id === groupId ? { ...g, instructor_name: instructorName } : g)));
-  } catch (err) {
-    alert('강사 지정 실패: ' + err.message);
+const EVAL_STRUCTURE = {
+  climbing: {
+    title: '🧗 1. 등반',
+    subFields: [
+      { key: 'climb_beltKnot', label: '벨트매듭', type: 'PF' },
+      { key: 'climb_footWork', label: '발사용', type: 'HML' },
+      { key: 'climb_handWork', label: '손사용', type: 'HML' },
+      { key: 'climb_stability', label: '안정성', type: 'HML' },
+      { key: 'climb_composure', label: '여유', type: 'HML' },
+    ]
+  },
+  secondBelay: {
+    title: '⚓ 2. 세컨 빌레이',
+    subFields: [
+      { key: 'sb_anchorSetup', label: '지점 세팅', type: 'PF' },
+      { key: 'sb_deviceSetup', label: '설치', type: 'PF' },
+      { key: 'sb_ropePull', label: '줄당기기', type: 'PF' },
+      { key: 'sb_ropeManage', label: '로프정리', type: 'PF' },
+      { key: 'sb_lowering', label: '하강', type: 'PF' },
+    ]
+  },
+  leadingBelay: {
+    title: '🧗‍♂️ 3. 리딩빌레이',
+    subFields: [
+      { key: 'lb_deviceSetup', label: '디바이스 설치', type: 'PF' },
+      { key: 'lb_shuffle', label: '셔플', type: 'PF' },
+      { key: 'lb_brakeHand', label: '제동손 위치', type: 'PF' },
+      { key: 'lb_stability', label: '안정성', type: 'HML' },
+    ]
+  },
+  rappelling: {
+    title: '🪢 4. 하강',
+    subFields: [
+      { key: 'rp_ropeSetup', label: '로프설치', type: 'PF' },
+      { key: 'rp_ropeFix', label: '로프고정', type: 'PF' },
+      { key: 'rp_harnessConnect', label: '체결', type: 'PF' },
+      { key: 'rp_stopCheck', label: '정지', type: 'PF' },
+      { key: 'rp_ascending', label: '어센딩', type: 'PF' },
+      { key: 'rp_proficiency', label: '능숙도', type: 'PF' },
+    ]
+  },
+  walking: {
+    title: '🥾 5. 보행',
+    subFields: [],
+    resultKey: 'walkingResult'
   }
 };
 
-      const handleGroupChange = async (studentId, newGroup) => {
-        try {
-          const { error } = await supabase.from('students').update({ group_name: newGroup }).eq('id', studentId);
-          if (error) throw error;
-          setStudents((prev) => prev.map((s) => ((s.id === studentId || s.student_id === studentId) ? { ...s, group_name: newGroup } : s)));
-        } catch (err) {
-          alert('조 변경 실패: ' + err.message);
-        }
-      };
+const ITEM_SCORES = { 'P': 3, 'H': 3, '상': 3, 'M': 2, '중': 2, 'F': 1, 'L': 1, '하': 1 };
 
-      const handleResetEvaluations = async () => {
-        const confirmInput = prompt('⚠️ 모든 학생의 평가 데이터가 삭제됩니다.\n초기화하시려면 "초기화"라고 입력해주세요.');
-        if (confirmInput !== '초기화') return;
-        try {
-          const { error } = await supabase.from('evaluations').delete().neq('instructor_name', ''); 
-          if (error) throw error;
-          setEvaluations({});
-          alert('모든 평가 데이터가 성공적으로 초기화되었습니다.');
-        } catch (err) {
-          alert('초기화 실패: ' + err.message);
-        }
-      };
+const calculateCategoryScore = (details, keys) => {
+  if (!details || !keys || keys.length === 0) return 0;
+  let sum = 0;
+  let count = 0;
+  keys.forEach((key) => {
+    const val = details[key];
+    if (val && ITEM_SCORES[val]) {
+      sum += ITEM_SCORES[val];
+      count++;
+    }
+  });
+  return count > 0 ? sum / count : 0;
+};
 
-      const handleOpenStudentModal = (student) => {
-        setSelectedStudent(student);
-        setModalTab('score');
-        const existingEv = evaluations[student.id]?.[instructorName];
-        if (existingEv) {
-          setEvalDetails(existingEv.details || {});
-          setEvalResults(existingEv.results || {});
-          setEvalNote(existingEv.note || '');
-        } else {
-          setEvalDetails({});
-          setEvalResults({});
-          setEvalNote('');
-        }
-      };
+const scoreToGrade = (score) => {
+  const num = Number(score);
+  if (num >= 2.5) return 'H';
+  if (num >= 1.5) return 'M';
+  if (num > 0) return 'L';
+  return '-';
+};
 
-      const handleSubFieldChange = (key, val) => setEvalDetails(prev => ({ ...prev, [key]: val }));
-      const handleResultChange = (resKey, val) => setEvalResults(prev => ({ ...prev, [resKey]: val }));
+const CATEGORY_KEYS = {
+  climbing: ['climb_beltKnot', 'climb_footWork', 'climb_handWork', 'climb_stability', 'climb_composure'],
+  secondBelay: ['sb_anchorSetup', 'sb_deviceSetup', 'sb_ropePull', 'sb_ropeManage', 'sb_lowering'],
+  leadingBelay: ['lb_deviceSetup', 'lb_shuffle', 'lb_brakeHand', 'lb_stability'],
+  rappelling: ['rp_ropeSetup', 'rp_ropeFix', 'rp_harnessConnect', 'rp_stopCheck', 'rp_ascending', 'rp_proficiency'],
+};
 
-      const handleManualSave = async () => {
-        if (!selectedStudent || !instructorName) return;
-        setSaving(true);
+const renderLevelBadge = (level) => {
+  const lvl = (level || 'basic').toLowerCase();
+  if (lvl === 'advance' || lvl === 'advanced') {
+    return <span className="text-[10px] bg-purple-100 text-purple-800 border border-purple-300 px-1.5 py-0.5 rounded font-black">ADVANCE</span>;
+  } else if (lvl === 'inter' || lvl === 'intermediate') {
+    return <span className="text-[10px] bg-blue-100 text-blue-800 border border-blue-300 px-1.5 py-0.5 rounded font-black">INTER</span>;
+  }
+  return <span className="text-[10px] bg-slate-100 text-slate-700 border border-slate-300 px-1.5 py-0.5 rounded font-bold">BASIC</span>;
+};
 
-        const cScore = calculateCategoryScore(evalDetails, CATEGORY_KEYS.climbing) || 2;
-        const sbScore = calculateCategoryScore(evalDetails, CATEGORY_KEYS.secondBelay) || 2;
-        const lbScore = calculateCategoryScore(evalDetails, CATEGORY_KEYS.leadingBelay) || 2;
-        const rpScore = calculateCategoryScore(evalDetails, CATEGORY_KEYS.rappelling) || 2;
-        
-        const wVal = evalResults.walkingResult || 'M';
-        const wScore = ITEM_SCORES[wVal] || 2;
+const getSurveyData = (student) => {
+  if (!student || !student.student_surveys) return null;
+  if (Array.isArray(student.student_surveys)) {
+    return student.student_surveys[0] || null;
+  }
+  return student.student_surveys;
+};
 
-        const payload = {
-          student_id: selectedStudent.id,
-          instructor_name: instructorName,
-          details: evalDetails,
-          results: evalResults,
-          note: evalNote,
-          climbing_score: Number(cScore.toFixed(2)),
-          second_belay_score: Number(sbScore.toFixed(2)),
-          leading_belay_score: Number(lbScore.toFixed(2)),
-          rappelling_score: Number(rpScore.toFixed(2)),
-          walking_score: wScore,
-          updated_at: new Date().toISOString()
-        };
+function App() {
+  const [instructorName, setInstructorName] = useState(() => localStorage.getItem('instructorName') || '');
+  const [isConfig, setIsConfig] = useState(!localStorage.getItem('instructorName'));
+  const [tempName, setTempName] = useState('');
 
-        try {
-          const { error } = await supabase.from('evaluations').upsert(payload, { onConflict: 'student_id,instructor_name' });
-          if (error) throw error;
-          setEvaluations(prev => ({
-            ...prev,
-            [selectedStudent.id]: {
-              ...(prev[selectedStudent.id] || {}),
-              [instructorName]: {
-                details: evalDetails,
-                results: evalResults,
-                note: evalNote,
-                updatedAt: payload.updated_at
-              }
-            }
-          }));
-          alert('평가가 성공적으로 저장되었습니다.');
-          setSelectedStudent(null);
-        } catch (err) {
-          alert('저장 실패: ' + err.message);
-        } fontFinally: {
-          setSaving(false);
-        }
-      };
+  const [activeTab, setActiveTab] = useState('allStudents');
+  const [isMyGroupOpen, setIsMyGroupOpen] = useState(false);
 
-      const renderGrade = (grade) => {
-        if (grade === 'L') return <span className="text-red-600 font-black bg-red-50 px-1 rounded border border-red-200">⚠️ L</span>;
-        return <span className="font-extrabold text-slate-800">{grade}</span>;
-      };
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-      const myAssignedGroups = groups.filter(g => g.instructor_name === instructorName || groupInstructors[g.name] === instructorName);
-      const filteredStudents = students.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase().trim()));
+  const [groups, setGroups] = useState([]);
+  const [instructors, setInstructors] = useState([]);
+  const [students, setStudents] = useState([]);
 
-      const calculatedList = (students || [])
-        .map((student) => {
-          const studentId = student.id || student.student_id;
-          const evalData = evaluations?.[studentId];
-          const studentEvals = Array.isArray(evalData) ? evalData : Object.values(evalData || {});
+  const [editingGroupId, setEditingGroupId] = useState(null);
+  const [editingName, setEditingName] = useState('');
 
-          if (!studentEvals || studentEvals.length === 0) {
-            return {
-              ...student,
-              grades: { climbing: '-', secondBelay: '-', leadingBelay: '-', rappelling: '-', walking: '-' },
-              totalScore: 0,
-              evalCount: 0,
-            };
-          }
+  const [groupInstructors, setGroupInstructors] = useState({});
+  const [evaluations, setEvaluations] = useState({});
 
-          const count = studentEvals.length;
-          let sumClimbing = 0, sumSecond = 0, sumLeading = 0, sumRappelling = 0, sumWalking = 0;
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [modalTab, setModalTab] = useState('score');
 
-          studentEvals.forEach((evalItem) => {
-            const details = evalItem.details || {};
-            const results = evalItem.results || {};
+  const [evalDetails, setEvalDetails] = useState({});
+  const [evalResults, setEvalResults] = useState({});
+  const [evalNote, setEvalNote] = useState('');
 
-            sumClimbing += evalItem.climbing_score || calculateCategoryScore(details, CATEGORY_KEYS.climbing);
-            sumSecond += evalItem.second_belay_score || calculateCategoryScore(details, CATEGORY_KEYS.secondBelay);
-            sumLeading += evalItem.leading_belay_score || calculateCategoryScore(details, CATEGORY_KEYS.leadingBelay);
-            sumRappelling += evalItem.rappelling_score || calculateCategoryScore(details, CATEGORY_KEYS.rappelling);
-            
-            const wVal = results.walkingResult || evalItem.walkingResult;
-            sumWalking += evalItem.walking_score || (wVal ? ITEM_SCORES[wVal] : 0);
-          });
+  const [selectedGroupViewStudent, setSelectedGroupViewStudent] = useState(null);
 
-          const avgClimbing = sumClimbing / count;
-          const avgSecond = sumSecond / count;
-          const avgLeading = sumLeading / count;
-          const avgRappelling = sumRappelling / count;
-          const avgWalking = sumWalking / count;
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
 
-          const totalScore = Number(((avgClimbing + avgSecond + avgLeading + avgRappelling + avgWalking) / 5).toFixed(1));
+  const handleTouchStart = (e) => { touchStartX.current = e.targetTouches[0].clientX; };
+  const handleTouchMove = (e) => { touchEndX.current = e.targetTouches[0].clientX; };
+  const handleTouchEnd = () => {
+    const distance = touchEndX.current - touchStartX.current;
+    if (touchStartX.current > 0 && touchEndX.current > 0 && distance > 60) setIsMyGroupOpen(true);
+    if (touchStartX.current > 0 && touchEndX.current > 0 && distance < -60) setIsMyGroupOpen(false);
+    touchStartX.current = 0;
+    touchEndX.current = 0;
+  };
 
-          return {
-            ...student,
-            grades: {
-              climbing: scoreToGrade(avgClimbing),
-              secondBelay: scoreToGrade(avgSecond),
-              leadingBelay: scoreToGrade(avgLeading),
-              rappelling: scoreToGrade(avgRappelling),
-              walking: scoreToGrade(avgWalking),
-            },
-            totalScore,
-            evalCount: count,
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const { data: grpData } = await supabase.from('groups').select('*');
+      if (grpData && grpData.length > 0) {
+        const sorted = grpData.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+        setGroups(sorted);
+      }
+
+      const { data: stdData, error: stdErr } = await supabase
+        .from('students')
+        .select('*, student_surveys!fk_student(*)');
+      if (stdErr) throw stdErr;
+      if (stdData) setStudents(stdData);
+
+      const { data: instData } = await supabase.from('instructors').select('*');
+      if (instData) setInstructors(instData);
+
+      const { data: gmData } = await supabase.from('group_managers').select('*');
+      if (gmData) {
+        const instMap = {};
+        gmData.forEach(gm => {
+          if (gm.group_name && gm.instructor_name) instMap[gm.group_name] = gm.instructor_name;
+        });
+        setGroupInstructors(instMap);
+      }
+
+      const { data: evData } = await supabase.from('evaluations').select('*');
+      if (evData) {
+        const evMap = {};
+        evData.forEach(ev => {
+          if (!evMap[ev.student_id]) evMap[ev.student_id] = {};
+          evMap[ev.student_id][ev.instructor_name] = {
+            details: ev.details || {},
+            results: ev.results || {},
+            note: ev.note || '',
+            climbing_score: ev.climbing_score,
+            second_belay_score: ev.second_belay_score,
+            leading_belay_score: ev.leading_belay_score,
+            rappelling_score: ev.rappelling_score,
+            walking_score: ev.walking_score,
+            updatedAt: ev.updated_at
           };
-        })
-        .sort((a, b) => b.totalScore - a.totalScore);
+        });
+        setEvaluations(evMap);
+      }
+    } catch (err) {
+      console.error("데이터 로딩 오류:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      return (
-        <div 
-          className="max-w-md mx-auto bg-slate-100 min-h-screen pb-20 relative overflow-x-hidden"
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-        >
-          <header className="bg-slate-900 text-white p-4 sticky top-0 z-30 shadow-md">
-            <div className="flex justify-between items-center">
-              <div>
-                <h1 className="font-extrabold text-base tracking-wide text-amber-400 flex items-center gap-1.5">
-                  ⛰️ 등반 교육 평가 시스템
-                  {loading && <span className="text-[10px] text-slate-400 font-normal animate-pulse">(동기화 중...)</span>}
-                </h1>
-                <p className="text-[10px] text-slate-400">👉 우측 스와이프: [내 담당 조] 확인</p>
-              </div>
-              <button 
-                onClick={() => { setTempName(instructorName); setIsConfig(true); }}
-                className="bg-slate-800 hover:bg-slate-700 text-xs px-2.5 py-1.5 rounded-lg border border-slate-700 font-medium text-slate-200"
+  useEffect(() => { fetchData(); }, []);
+
+  const handleAddGroup = async () => {
+    const nextNumber = groups.length + 1;
+    const newGroupName = `${nextNumber}조`;
+    try {
+      const { data, error } = await supabase.from('groups').insert([{ name: newGroupName }]).select();
+      if (error) throw error;
+      if (data) setGroups((prev) => [...prev, ...data]);
+    } catch (err) {
+      alert('조 추가 실패: ' + err.message);
+    }
+  };
+
+  const handleDeleteGroup = async (groupId, groupName) => {
+    if (!confirm(`'${groupName}'을(를) 삭제하시겠습니까?`)) return;
+    try {
+      const { error } = await supabase.from('groups').delete().eq('id', groupId);
+      if (error) throw error;
+      await supabase.from('students').update({ group_name: '' }).eq('group_name', groupName);
+      setGroups((prev) => prev.filter((g) => g.id !== groupId));
+      setStudents((prev) => prev.map((s) => (s.group_name === groupName ? { ...s, group_name: '' } : s)));
+    } catch (err) {
+      alert('조 삭제 실패: ' + err.message);
+    }
+  };
+
+  const handleSaveGroupName = async (groupId, oldName) => {
+    if (!editingName.trim()) return alert('조 이름을 입력해 주세요.');
+    try {
+      const { error: groupErr } = await supabase.from('groups').update({ name: editingName }).eq('id', groupId);
+      if (groupErr) throw groupErr;
+      if (oldName) {
+        await supabase.from('students').update({ group_name: editingName }).eq('group_name', oldName);
+        setStudents((prev) => prev.map((s) => (s.group_name === oldName ? { ...s, group_name: editingName } : s)));
+      }
+      setGroups((prev) => prev.map((g) => (g.id === groupId ? { ...g, name: editingName } : g)));
+      setEditingGroupId(null);
+    } catch (err) {
+      alert('조 이름 수정 실패: ' + err.message);
+    }
+  };
+
+  const handleInstructorChange = async (groupId, instructorName) => {
+    const targetGroup = groups.find(g => g.id === groupId);
+    if (!targetGroup) return;
+    const groupName = targetGroup.name;
+
+    try {
+      const { error } = await supabase.from('group_managers').upsert(
+        { group_name: groupName, instructor_name: instructorName },
+        { onConflict: 'group_name' }
+      );
+      if (error) throw error;
+
+      setGroupInstructors(prev => ({ ...prev, [groupName]: instructorName }));
+      setGroups((prev) => prev.map((g) => (g.id === groupId ? { ...g, instructor_name: instructorName } : g)));
+    } catch (err) {
+      alert('강사 지정 실패: ' + err.message);
+    }
+  };
+
+  const handleGroupChange = async (studentId, newGroup) => {
+    try {
+      const { error } = await supabase.from('students').update({ group_name: newGroup }).eq('id', studentId);
+      if (error) throw error;
+      setStudents((prev) => prev.map((s) => ((s.id === studentId || s.student_id === studentId) ? { ...s, group_name: newGroup } : s)));
+    } catch (err) {
+      alert('조 변경 실패: ' + err.message);
+    }
+  };
+
+  const handleResetEvaluations = async () => {
+    const confirmInput = prompt('⚠️ 모든 학생의 평가 데이터가 삭제됩니다.\n초기화하시려면 "초기화"라고 입력해주세요.');
+    if (confirmInput !== '초기화') return;
+    try {
+      const { error } = await supabase.from('evaluations').delete().neq('instructor_name', '');
+      if (error) throw error;
+      setEvaluations({});
+      alert('모든 평가 데이터가 성공적으로 초기화되었습니다.');
+    } catch (err) {
+      alert('초기화 실패: ' + err.message);
+    }
+  };
+
+  const handleOpenStudentModal = (student) => {
+    setSelectedStudent(student);
+    setModalTab('score');
+    const existingEv = evaluations[student.id]?.[instructorName];
+    if (existingEv) {
+      setEvalDetails(existingEv.details || {});
+      setEvalResults(existingEv.results || {});
+      setEvalNote(existingEv.note || '');
+    } else {
+      setEvalDetails({});
+      setEvalResults({});
+      setEvalNote('');
+    }
+  };
+
+  const handleSubFieldChange = (key, val) => setEvalDetails(prev => ({ ...prev, [key]: val }));
+  const handleResultChange = (resKey, val) => setEvalResults(prev => ({ ...prev, [resKey]: val }));
+
+  const handleManualSave = async () => {
+    if (!selectedStudent || !instructorName) return;
+    setSaving(true);
+
+    const cScore = calculateCategoryScore(evalDetails, CATEGORY_KEYS.climbing) || 2;
+    const sbScore = calculateCategoryScore(evalDetails, CATEGORY_KEYS.secondBelay) || 2;
+    const lbScore = calculateCategoryScore(evalDetails, CATEGORY_KEYS.leadingBelay) || 2;
+    const rpScore = calculateCategoryScore(evalDetails, CATEGORY_KEYS.rappelling) || 2;
+
+    const wVal = evalResults.walkingResult || 'M';
+    const wScore = ITEM_SCORES[wVal] || 2;
+
+    const payload = {
+      student_id: selectedStudent.id,
+      instructor_name: instructorName,
+      details: evalDetails,
+      results: evalResults,
+      note: evalNote,
+      climbing_score: Number(cScore.toFixed(2)),
+      second_belay_score: Number(sbScore.toFixed(2)),
+      leading_belay_score: Number(lbScore.toFixed(2)),
+      rappelling_score: Number(rpScore.toFixed(2)),
+      walking_score: wScore,
+      updated_at: new Date().toISOString()
+    };
+
+    try {
+      const { error } = await supabase.from('evaluations').upsert(payload, { onConflict: 'student_id,instructor_name' });
+      if (error) throw error;
+      setEvaluations(prev => ({
+        ...prev,
+        [selectedStudent.id]: {
+          ...(prev[selectedStudent.id] || {}),
+          [instructorName]: {
+            details: evalDetails,
+            results: evalResults,
+            note: evalNote,
+            updatedAt: payload.updated_at
+          }
+        }
+      }));
+      alert('평가가 성공적으로 저장되었습니다.');
+      setSelectedStudent(null);
+    } catch (err) {
+      alert('저장 실패: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const renderGrade = (grade) => {
+    if (grade === 'L') return <span className="text-red-600 font-black bg-red-50 px-1 rounded border border-red-200">⚠️ L</span>;
+    return <span className="font-extrabold text-slate-800">{grade}</span>;
+  };
+
+  const myAssignedGroups = groups.filter(g => g.instructor_name === instructorName || groupInstructors[g.name] === instructorName);
+  const filteredStudents = students.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase().trim()));
+
+  const calculatedList = (students || [])
+    .map((student) => {
+      const studentId = student.id || student.student_id;
+      const evalData = evaluations?.[studentId];
+      const studentEvals = Array.isArray(evalData) ? evalData : Object.values(evalData || {});
+
+      if (!studentEvals || studentEvals.length === 0) {
+        return {
+          ...student,
+          grades: { climbing: '-', secondBelay: '-', leadingBelay: '-', rappelling: '-', walking: '-' },
+          totalScore: 0,
+          evalCount: 0,
+        };
+      }
+
+      const count = studentEvals.length;
+      let sumClimbing = 0, sumSecond = 0, sumLeading = 0, sumRappelling = 0, sumWalking = 0;
+
+      studentEvals.forEach((evalItem) => {
+        const details = evalItem.details || {};
+        const results = evalItem.results || {};
+
+        sumClimbing += evalItem.climbing_score || calculateCategoryScore(details, CATEGORY_KEYS.climbing);
+        sumSecond += evalItem.second_belay_score || calculateCategoryScore(details, CATEGORY_KEYS.secondBelay);
+        sumLeading += evalItem.leading_belay_score || calculateCategoryScore(details, CATEGORY_KEYS.leadingBelay);
+        sumRappelling += evalItem.rappelling_score || calculateCategoryScore(details, CATEGORY_KEYS.rappelling);
+
+        const wVal = results.walkingResult || evalItem.walkingResult;
+        sumWalking += evalItem.walking_score || (wVal ? ITEM_SCORES[wVal] : 0);
+      });
+
+      const avgClimbing = sumClimbing / count;
+      const avgSecond = sumSecond / count;
+      const avgLeading = sumLeading / count;
+      const avgRappelling = sumRappelling / count;
+      const avgWalking = sumWalking / count;
+
+      const totalScore = Number(((avgClimbing + avgSecond + avgLeading + avgRappelling + avgWalking) / 5).toFixed(1));
+
+      return {
+        ...student,
+        grades: {
+          climbing: scoreToGrade(avgClimbing),
+          secondBelay: scoreToGrade(avgSecond),
+          leadingBelay: scoreToGrade(avgLeading),
+          rappelling: scoreToGrade(avgRappelling),
+          walking: scoreToGrade(avgWalking),
+        },
+        totalScore,
+        evalCount: count,
+      };
+    })
+    .sort((a, b) => b.totalScore - a.totalScore);
+
+  return (
+    <div
+      className="max-w-md mx-auto bg-slate-100 min-h-screen pb-20 relative overflow-x-hidden"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      <header className="bg-slate-900 text-white p-4 sticky top-0 z-30 shadow-md">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="font-extrabold text-base tracking-wide text-amber-400 flex items-center gap-1.5">
+              ⛰️ 등반 교육 평가 시스템
+              {loading && <span className="text-[10px] text-slate-400 font-normal animate-pulse">(동기화 중...)</span>}
+            </h1>
+            <p className="text-[10px] text-slate-400">👉 우측 스와이프: [내 담당 조] 확인</p>
+          </div>
+          <button
+            onClick={() => { setTempName(instructorName); setIsConfig(true); }}
+            className="bg-slate-800 hover:bg-slate-700 text-xs px-2.5 py-1.5 rounded-lg border border-slate-700 font-medium text-slate-200"
+          >
+            👤 {instructorName || '강사 설정'}
+          </button>
+        </div>
+
+        <div className="flex bg-slate-800 p-1 rounded-xl mt-3 text-xs font-bold">
+          <button
+            onClick={() => setActiveTab('allStudents')}
+            className={`flex-1 py-2 text-center rounded-lg transition-all ${activeTab === 'allStudents' ? 'bg-amber-500 text-slate-950 font-black shadow' : 'text-slate-400'}`}
+          >
+            교육생 리스트
+          </button>
+          <button
+            onClick={() => setActiveTab('allGroup')}
+            className={`flex-1 py-2 text-center rounded-lg transition-all ${activeTab === 'allGroup' ? 'bg-amber-500 text-slate-950 font-black shadow' : 'text-slate-400'}`}
+          >
+            전체 조 평가
+          </button>
+          <button
+            onClick={() => setActiveTab('admin')}
+            className={`flex-1 py-2 text-center rounded-lg transition-all ${activeTab === 'admin' ? 'bg-indigo-600 text-white font-black shadow' : 'text-slate-400'}`}
+          >
+            ⚙️ 관리자
+          </button>
+        </div>
+      </header>
+
+      {isConfig && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-xs space-y-4 shadow-2xl text-slate-800">
+            <div>
+              <h3 className="text-base font-extrabold text-slate-900">👤 강사 이름 설정</h3>
+              <p className="text-xs text-slate-500 mt-0.5">평가 내역에 기록될 본인의 이름을 입력해 주세요.</p>
+            </div>
+            <input
+              type="text"
+              value={tempName}
+              onChange={(e) => setTempName(e.target.value)}
+              placeholder="예: 배서영"
+              className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+              autoFocus
+            />
+            <div className="flex gap-2 pt-1">
+              {instructorName && (
+                <button
+                  onClick={() => setIsConfig(false)}
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-xl text-xs font-bold transition-colors"
+                >
+                  취소
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  if (!tempName.trim()) return alert('강사 이름을 입력해주세요.');
+                  const name = tempName.trim();
+                  localStorage.setItem('instructorName', name);
+                  setInstructorName(name);
+                  setIsConfig(false);
+                }}
+                className="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-2.5 rounded-xl text-xs font-bold transition-colors shadow-md"
               >
-                👤 {instructorName || '강사 설정'}
+                저장하기
               </button>
             </div>
+          </div>
+        </div>
+      )}
 
-            <div className="flex bg-slate-800 p-1 rounded-xl mt-3 text-xs font-bold">
-              <button 
-                onClick={() => setActiveTab('allStudents')}
-                className={`flex-1 py-2 text-center rounded-lg transition-all ${activeTab === 'allStudents' ? 'bg-amber-500 text-slate-950 font-black shadow' : 'text-slate-400'}`}
-              >
-                교육생 리스트
-              </button>
-              <button 
-                onClick={() => setActiveTab('allGroup')}
-                className={`flex-1 py-2 text-center rounded-lg transition-all ${activeTab === 'allGroup' ? 'bg-amber-500 text-slate-950 font-black shadow' : 'text-slate-400'}`}
-              >
-                전체 조 평가
-              </button>
-              <button 
-                onClick={() => setActiveTab('admin')}
-                className={`flex-1 py-2 text-center rounded-lg transition-all ${activeTab === 'admin' ? 'bg-indigo-600 text-white font-black shadow' : 'text-slate-400'}`}
-              >
-                ⚙️ 관리자
-              </button>
+      <main className="p-4 space-y-4">
+        {activeTab === 'allStudents' && (
+          <div className="space-y-3">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="🔍 교육생 이름 검색..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full p-3 pl-10 bg-white border border-slate-300 rounded-2xl text-xs font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+              />
+              <span className="absolute left-3.5 top-3 text-slate-400 text-xs">🔎</span>
             </div>
-          </header>
 
-          {isConfig && (
-            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-2xl p-6 w-full max-w-xs space-y-4 shadow-2xl text-slate-800">
-                <div>
-                  <h3 className="text-base font-extrabold text-slate-900">👤 강사 이름 설정</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">평가 내역에 기록될 본인의 이름을 입력해 주세요.</p>
+            <div className="space-y-2.5">
+              {filteredStudents.length === 0 ? (
+                <div className="bg-white p-8 rounded-2xl text-center text-slate-400 text-xs border">
+                  검색 결과가 없습니다.
                 </div>
-                <input
-                  type="text"
-                  value={tempName}
-                  onChange={(e) => setTempName(e.target.value)}
-                  placeholder="예: 배서영"
-                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  autoFocus
-                />
-                <div className="flex gap-2 pt-1">
-                  {instructorName && (
-                    <button
-                      onClick={() => setIsConfig(false)}
-                      className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-xl text-xs font-bold transition-colors"
+              ) : (
+                filteredStudents.map(s => {
+                  const survey = getSurveyData(s);
+                  const myEval = evaluations[s.id]?.[instructorName];
+
+                  return (
+                    <div
+                      key={s.id}
+                      onClick={() => handleOpenStudentModal(s)}
+                      className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between cursor-pointer hover:border-amber-400 transition-all active:scale-[0.99]"
                     >
-                      취소
-                    </button>
-                  )}
-                  <button
-                    onClick={() => {
-                      if (!tempName.trim()) return alert('강사 이름을 입력해주세요.');
-                      const name = tempName.trim();
-                      localStorage.setItem('instructorName', name);
-                      setInstructorName(name);
-                      setIsConfig(false);
-                    }}
-                    className="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-2.5 rounded-xl text-xs font-bold transition-colors shadow-md"
-                  >
-                    저장하기
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+                      <div className="flex items-center gap-3">
+                        {s.photo_url ? (
+                          <img src={s.photo_url} alt={s.name} className="w-12 h-12 rounded-xl object-cover border border-slate-100" />
+                        ) : (
+                          <div className="w-12 h-12 rounded-xl bg-slate-100 border flex items-center justify-center text-xl font-bold text-slate-400">
+                            {s.name ? s.name[0] : '👤'}
+                          </div>
+                        )}
 
-          <main className="p-4 space-y-4">
-            {activeTab === 'allStudents' && (
-              <div className="space-y-3">
-                <div className="relative">
-                  <input 
-                    type="text" 
-                    placeholder="🔍 교육생 이름 검색..." 
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    className="w-full p-3 pl-10 bg-white border border-slate-300 rounded-2xl text-xs font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                  />
-                  <span className="absolute left-3.5 top-3 text-slate-400 text-xs">🔎</span>
-                </div>
-
-                <div className="space-y-2.5">
-                  {filteredStudents.length === 0 ? (
-                    <div className="bg-white p-8 rounded-2xl text-center text-slate-400 text-xs border">
-                      검색 결과가 없습니다.
-                    </div>
-                  ) : (
-                    filteredStudents.map(s => {
-                      const survey = getSurveyData(s);
-                      const myEval = evaluations[s.id]?.[instructorName];
-
-                      return (
-                        <div 
-                          key={s.id} 
-                          onClick={() => handleOpenStudentModal(s)}
-                          className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between cursor-pointer hover:border-amber-400 transition-all active:scale-[0.99]"
-                        >
-                          <div className="flex items-center gap-3">
-                            {s.photo_url ? (
-                              <img src={s.photo_url} alt={s.name} className="w-12 h-12 rounded-xl object-cover border border-slate-100" />
-                            ) : (
-                              <div className="w-12 h-12 rounded-xl bg-slate-100 border flex items-center justify-center text-xl font-bold text-slate-400">
-                                {s.name ? s.name[0] : '👤'}
-                              </div>
-                            )}
-
-                            <div className="space-y-0.5">
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-extrabold text-sm text-slate-800">{s.name}</span>
-                                <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold">
-                                  {s.group_name || '조 미정'}
-                                </span>
-                                {renderLevelBadge(s.level || survey?.level)}
-                              </div>
-
-                              <div className="text-[11px] text-slate-500">
-                                {s.age ? `만 ${s.age}세` : '나이미상'} · {s.gender || '성별미상'}
-                              </div>
-
-                              <div className="text-[10px] text-slate-400 line-clamp-1">
-                                🧗 경력: {survey?.climbing_exp || s.climbing_exp || '미입력'}
-                              </div>
-                            </div>
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-extrabold text-sm text-slate-800">{s.name}</span>
+                            <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold">
+                              {s.group_name || '조 미정'}
+                            </span>
+                            {renderLevelBadge(s.level || survey?.level)}
                           </div>
 
-                          <div className="text-right flex flex-col items-end gap-1">
-                            {myEval ? (
-                              <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
-                                채점완료 ✓
-                              </span>
-                            ) : (
-                              <span className="text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 rounded-full">
-                                채점대기
-                              </span>
-                            )}
-                            <span className="text-slate-300 text-xs font-bold">&gt;</span>
+                          <div className="text-[11px] text-slate-500">
+                            {s.age ? `만 ${s.age}세` : '나이미상'} · {s.gender || '성별미상'}
+                          </div>
+
+                          <div className="text-[10px] text-slate-400 line-clamp-1">
+                            🧗 경력: {survey?.climbing_exp || s.climbing_exp || '미입력'}
                           </div>
                         </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            )}
-{activeTab === 'allGroup' && (
-  <div className="space-y-4">
-    {groups.map(grp => {
-      const grpName = grp.name || grp;
-      const groupStudents = students
-        .filter(s => s.group_name === grpName)
-        .sort((a, b) => a.name.localeCompare(b.name, 'ko')); // 이름순 정렬 고정
-      const assignedInst = grp.instructor_name || groupInstructors[grpName] || '미지정';
+                      </div>
 
-      return (
-        <div key={grp.id || grpName} className="bg-white rounded-2xl p-4 border shadow-sm space-y-3">
-          {/* 조 헤더 */}
-          <div className="flex justify-between items-center border-b pb-2">
-            <span className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-              <span className="bg-indigo-600 text-white px-2 py-0.5 rounded-lg text-xs">{grpName}</span>
-              <span className="text-xs font-normal text-slate-500">담당: {assignedInst}</span>
-            </span>
-            <span className="text-xs bg-slate-100 px-2.5 py-0.5 rounded-full text-slate-700 font-bold">
-              조원 {groupStudents.length}명
-            </span>
+                      <div className="text-right flex flex-col items-end gap-1">
+                        {myEval ? (
+                          <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
+                            채점완료 ✓
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 rounded-full">
+                            채점대기
+                          </span>
+                        )}
+                        <span className="text-slate-300 text-xs font-bold">&gt;</span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
+        )}
+        {activeTab === 'allGroup' && (
+          <div className="space-y-4">
+            {groups.map(grp => {
+              const grpName = grp.name || grp;
+              const groupStudents = calculatedList
+                .filter(s => s.group_name === grpName)
+                .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+              const assignedInst = grp.instructor_name || groupInstructors[grpName] || '미지정';
 
-{/* 조원 카드 리스트 */}
-    <div className="space-y-2">
-      { <div className="space-y-2">
+              return (
+                <div key={grp.id || grpName} className="bg-white rounded-2xl p-4 border shadow-sm space-y-3">
+                  <div className="flex justify-between items-center border-b pb-2">
+                    <span className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+                      <span className="bg-indigo-600 text-white px-2 py-0.5 rounded-lg text-xs">{grpName}</span>
+                      <span className="text-xs font-normal text-slate-500">담당: {assignedInst}</span>
+                    </span>
+                    <span className="text-xs bg-slate-100 px-2.5 py-0.5 rounded-full text-slate-700 font-bold">
+                      조원 {groupStudents.length}명
+                    </span>
+                  </div>
+
+                  <div className="space-y-2">
                     {groupStudents.length === 0 ? (
                       <div className="text-center py-6 text-slate-400 text-xs italic bg-slate-50 rounded-xl border border-dashed">
                         배정된 조원이 없습니다.
@@ -765,11 +760,9 @@
           </div>
         )}
 
-{activeTab === 'admin' && (
+        {activeTab === 'admin' && (
   <div className="space-y-6">
-    {/* 1. 과목별 성적 순위표 */}
     <div className="space-y-3">
-      {/* 헤더 */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center gap-4">
         <div>
           <h2 className="font-extrabold text-sm text-slate-900">📊 과목별 성적 순위표</h2>
@@ -788,12 +781,9 @@
         </div>
       </div>
 
-      {/* 순위 리스트 */}
       <div className="space-y-2.5">
         {calculatedList.map((s, index) => (
           <div key={s.id || index} className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-            
-            {/* [상단] 기본 정보 및 평균 */}
             <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
               <div className="flex items-center gap-2.5 min-w-0">
                 <span className={`w-5 text-center font-black text-sm shrink-0 ${index === 0 ? 'text-amber-500 text-base' : 'text-slate-400'}`}>
@@ -825,7 +815,6 @@
               </div>
             </div>
 
-            {/* [하단] 5개 과목 성적 */}
             <div className="grid grid-cols-5 gap-1 bg-slate-50 p-2 rounded-xl border border-slate-100 text-center">
               <div className="flex flex-col items-center justify-center gap-0.5">
                 <span className="text-[9px] text-slate-400 font-bold truncate">등반</span>
@@ -848,13 +837,11 @@
                 <span>{renderGrade(s.grades.walking)}</span>
               </div>
             </div>
-
           </div>
         ))}
       </div>
     </div>
 
-    {/* 2. 조 및 담당 강사 배정 */}
     <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4 max-w-2xl mx-auto">
       <div className="flex justify-between items-center pb-3 border-b border-slate-100">
         <div>
@@ -901,17 +888,17 @@
 
                 <div className="flex items-center gap-2">
                   <select
-  value={g.instructor_name || ''}
-  onChange={(e) => handleInstructorChange(g.id, e.target.value)}
-  className="text-xs font-semibold bg-white border border-slate-300 text-slate-800 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
->
-  <option value="">담당 강사 선택</option>
-  {instructors.map((ins) => (
-    <option key={ins.id} value={ins.name}>
-      {ins.name}
-    </option>
-  ))}
-</select>
+                    value={g.instructor_name || ''}
+                    onChange={(e) => handleInstructorChange(g.id, e.target.value)}
+                    className="text-xs font-semibold bg-white border border-slate-300 text-slate-800 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  >
+                    <option value="">담당 강사 선택</option>
+                    {instructors.map((ins) => (
+                      <option key={ins.id} value={ins.name}>
+                        {ins.name}
+                      </option>
+                    ))}
+                  </select>
 
                   <button onClick={() => handleDeleteGroup(g.id, g.name)} className="text-xs text-slate-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-colors" title="조 삭제">
                     🗑️
@@ -942,7 +929,6 @@
 )}
           </main>
 
-          {/* 내 담당 조 서랍(Drawer) */}
           <div className={`fixed inset-y-0 left-0 z-40 w-80 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out border-r ${isMyGroupOpen ? 'translate-x-0' : '-translate-x-full'}`}>
             <div className="p-4 bg-slate-900 text-white flex justify-between items-center">
               <div>
@@ -974,8 +960,8 @@
                         {groupStudents.map(s => {
                           const survey = getSurveyData(s);
                           return (
-                            <div 
-                              key={s.id} 
+                            <div
+                              key={s.id}
                               onClick={() => { handleOpenStudentModal(s); setIsMyGroupOpen(false); }}
                               className="bg-white p-2.5 rounded-xl border flex items-center justify-between cursor-pointer hover:bg-amber-50/50"
                             >
@@ -1026,14 +1012,14 @@
                 </div>
 
                 <div className="flex border-b text-xs font-bold">
-                  <button 
-                    onClick={() => setModalTab('score')} 
+                  <button
+                    onClick={() => setModalTab('score')}
                     className={`flex-1 py-2.5 text-center ${modalTab === 'score' ? 'border-b-2 border-amber-500 text-amber-600 font-extrabold' : 'text-slate-400'}`}
                   >
                     📝 평가 입력
                   </button>
-                  <button 
-                    onClick={() => setModalTab('survey')} 
+                  <button
+                    onClick={() => setModalTab('survey')}
                     className={`flex-1 py-2.5 text-center ${modalTab === 'survey' ? 'border-b-2 border-amber-500 text-amber-600 font-extrabold' : 'text-slate-400'}`}
                   >
                     📋 사전 설문
@@ -1066,8 +1052,8 @@
                                           type="button"
                                           onClick={() => handleSubFieldChange(sub.key, opt)}
                                           className={`px-2.5 py-1 rounded text-[11px] font-bold border transition-all ${
-                                            val === opt 
-                                              ? (opt === 'P' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-red-600 text-white border-red-600') 
+                                            val === opt
+                                              ? (opt === 'P' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-red-600 text-white border-red-600')
                                               : 'bg-white text-slate-500 border-slate-200'
                                           }`}
                                         >
@@ -1109,8 +1095,8 @@
                                     type="button"
                                     onClick={() => handleResultChange(category.resultKey, resOpt)}
                                     className={`px-3 py-1 rounded-lg text-xs font-black border transition-all ${
-                                      isSelected 
-                                        ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-sm scale-105' 
+                                      isSelected
+                                        ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-sm scale-105'
                                         : 'bg-white text-slate-600 border-slate-200'
                                     }`}
                                   >
@@ -1126,8 +1112,8 @@
 
                     <div>
                       <label className="text-xs font-bold text-slate-700 block mb-1">관찰 메모 & 특이사항</label>
-                      <textarea 
-                        rows="2" 
+                      <textarea
+                        rows="2"
                         placeholder="특이사항이나 강점/보완점 입력..."
                         value={evalNote}
                         onChange={e => setEvalNote(e.target.value)}
@@ -1196,8 +1182,8 @@
       );
     }
 
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
   </script>
 </body>
 </html>
