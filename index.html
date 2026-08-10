@@ -627,150 +627,143 @@
 
 {/* 조원 카드 리스트 */}
     <div className="space-y-2">
-      {groupStudents.length === 0 ? (
-        <div className="text-center py-6 text-slate-400 text-xs italic bg-slate-50 rounded-xl border border-dashed">
-          배정된 조원이 없습니다.
-        </div>
-      ) : (
-        groupStudents.map(s => {
-          const survey = (typeof surveys !== 'undefined' && (Array.isArray(surveys) 
-            ? surveys.find(sur => sur.student_id === s.id || sur.name === s.name) 
-            : surveys[s.id])) || {
-              experience: s.experience || s.career || s.survey_experience,
-              goal: s.goal || s.survey_goal,
-              memo: s.memo || s.survey_memo,
-              level: s.level
-            };
+      { <div className="space-y-2">
+                    {groupStudents.length === 0 ? (
+                      <div className="text-center py-6 text-slate-400 text-xs italic bg-slate-50 rounded-xl border border-dashed">
+                        배정된 조원이 없습니다.
+                      </div>
+                    ) : (
+                      groupStudents.map(s => {
+                        const survey = getSurveyData(s);
 
-          const rawAvg = s.totalScore;
-          const avgTotal = rawAvg !== undefined && rawAvg !== null && !isNaN(rawAvg) 
-            ? Number(rawAvg).toFixed(1) 
-            : '-';
+                        const avgTotal = s.evalCount > 0
+                          ? Number(s.totalScore).toFixed(1)
+                          : '-';
 
-          return (
-            <div 
-              key={s.id}
-              onClick={() => setSelectedGroupViewStudent(s)}
-              className="bg-slate-50 hover:bg-slate-100/80 p-3 rounded-xl border border-slate-200/80 transition-all cursor-pointer flex items-center justify-between gap-3 group"
-            >
-              <div className="flex items-center gap-3">
-                {s.photo_url ? (
-                  <img src={s.photo_url} alt={s.name} className="w-12 h-12 rounded-xl object-cover border shadow-2xs shrink-0" />
-                ) : (
-                  <div className="w-12 h-12 rounded-xl bg-slate-200 flex items-center justify-center font-bold text-slate-600 text-sm border shadow-2xs shrink-0">
-                    {s.name ? s.name[0] : ''}
+                        return (
+                          <div
+                            key={s.id}
+                            onClick={() => setSelectedGroupViewStudent(s)}
+                            className="bg-slate-50 hover:bg-slate-100/80 p-3 rounded-xl border border-slate-200/80 transition-all cursor-pointer flex items-center justify-between gap-3 group"
+                          >
+                            <div className="flex items-center gap-3">
+                              {s.photo_url ? (
+                                <img src={s.photo_url} alt={s.name} className="w-12 h-12 rounded-xl object-cover border shadow-2xs shrink-0" />
+                              ) : (
+                                <div className="w-12 h-12 rounded-xl bg-slate-200 flex items-center justify-center font-bold text-slate-600 text-sm border shadow-2xs shrink-0">
+                                  {s.name ? s.name[0] : ''}
+                                </div>
+                              )}
+                              <div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-extrabold text-sm text-slate-900 group-hover:text-indigo-600 transition-colors">
+                                    {s.name}
+                                  </span>
+                                  {renderLevelBadge(s.level || survey?.level)}
+                                </div>
+                                <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+                                  {survey?.climbing_exp ? `경력: ${survey.climbing_exp}` : '사전 설문 미작성'} {survey?.purpose ? `/ 목표: ${survey.purpose}` : ''}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3 text-right shrink-0">
+                              <div>
+                                <span className="text-[10px] text-slate-400 block font-bold">종합 평균</span>
+                                <span className="text-sm font-black text-indigo-600">{avgTotal !== '-' ? `${avgTotal}점` : '-'}</span>
+                              </div>
+                              <span className="text-slate-300 font-bold group-hover:text-indigo-500 transition-colors">&gt;</span>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
-                )}
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-extrabold text-sm text-slate-900 group-hover:text-indigo-600 transition-colors">
-                      {s.name}
-                    </span>
-                    {renderLevelBadge(s.level || survey?.level)}
-                  </div>
-                  <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">
-                    {survey?.experience || survey?.career ? `경력: ${survey.experience || survey.career}` : '사전 설문 미작성'} {survey?.goal ? `/ 목표: ${survey.goal}` : ''}
-                  </p>
                 </div>
-              </div>
-
-              <div className="flex items-center gap-3 text-right shrink-0">
-                <div>
-                  <span className="text-[10px] text-slate-400 block font-bold">종합 평균</span>
-                  <span className="text-sm font-black text-indigo-600">{avgTotal !== '-' ? `${avgTotal}점` : '-'}</span>
-                </div>
-                <span className="text-slate-300 font-bold group-hover:text-indigo-500 transition-colors">&gt;</span>
-              </div>
-            </div>
-          );
-        })
-      )}
-    </div>
-
-    {/* 학생 상세 정보 모달 */}
-    {selectedGroupViewStudent && (() => {
-      const s = selectedGroupViewStudent;
-      
-      const survey = (typeof surveys !== 'undefined' && (Array.isArray(surveys) 
-        ? surveys.find(sur => sur.student_id === s.id || sur.name === s.name) 
-        : surveys[s.id])) || {
-          experience: s.experience || s.career || s.survey_experience,
-          goal: s.goal || s.survey_goal,
-          memo: s.memo || s.survey_memo,
-          level: s.level
-        };
-
-      return (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-5 space-y-4 shadow-xl">
-            <div className="flex justify-between items-center border-b pb-3">
-              <div className="flex items-center gap-3">
-                {s.photo_url ? (
-                  <img src={s.photo_url} alt={s.name} className="w-12 h-12 rounded-xl object-cover border shrink-0" />
-                ) : (
-                  <div className="w-12 h-12 rounded-xl bg-slate-200 flex items-center justify-center font-bold text-slate-600 text-sm shrink-0">
-                    {s.name ? s.name[0] : ''}
-                  </div>
-                )}
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-extrabold text-base text-slate-900">{s.name}</span>
-                    {renderLevelBadge(s.level || survey?.level)}
-                  </div>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    {s.group_name || '조 미정'} | 경력: {survey?.experience || survey?.career || '정보 없음'}
-                  </p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setSelectedGroupViewStudent(null)}
-                className="text-slate-400 hover:text-slate-700 text-lg font-bold p-1"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-2 pt-2 border-t">
-              <h3 className="font-extrabold text-sm text-slate-800 flex items-center gap-1.5">
-                📋 사전 설문 내용
-              </h3>
-              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2 text-xs text-slate-700">
-                <div>
-                  <span className="font-bold text-slate-400 block text-[10px]">클라이밍 경력 및 수준</span>
-                  <p className="mt-0.5 font-medium">{survey?.experience || survey?.career || '작성된 내용이 없습니다.'}</p>
-                </div>
-                <div>
-                  <span className="font-bold text-slate-400 block text-[10px]">교육 참여 목표</span>
-                  <p className="mt-0.5 font-medium">{survey?.goal || '작성된 내용이 없습니다.'}</p>
-                </div>
-                {survey?.memo && (
-                  <div>
-                    <span className="font-bold text-slate-400 block text-[10px]">기타 특이사항</span>
-                    <p className="mt-0.5 font-medium">{survey.memo}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="pt-2">
-              <button 
-                onClick={() => setSelectedGroupViewStudent(null)}
-                className="w-full py-2.5 bg-slate-900 text-white rounded-xl font-bold text-xs hover:bg-slate-800 transition-colors"
-              >
-                확인
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    })()}
-           </div>
               );
             })}
+
+            {selectedGroupViewStudent && (() => {
+              const s = selectedGroupViewStudent;
+              const survey = getSurveyData(s);
+              const evalCount = s.evalCount || 0;
+              const avgTotal = evalCount > 0 ? Number(s.totalScore).toFixed(1) : '-';
+
+              return (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                  <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-5 space-y-4 shadow-xl">
+                    <div className="flex justify-between items-center border-b pb-3">
+                      <div className="flex items-center gap-3">
+                        {s.photo_url ? (
+                          <img src={s.photo_url} alt={s.name} className="w-12 h-12 rounded-xl object-cover border shrink-0" />
+                        ) : (
+                          <div className="w-12 h-12 rounded-xl bg-slate-200 flex items-center justify-center font-bold text-slate-600 text-sm shrink-0">
+                            {s.name ? s.name[0] : ''}
+                          </div>
+                        )}
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-extrabold text-base text-slate-900">{s.name}</span>
+                            {renderLevelBadge(s.level || survey?.level)}
+                          </div>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            {s.group_name || '조 미정'} | 경력: {survey?.climbing_exp || '정보 없음'}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setSelectedGroupViewStudent(null)}
+                        className="text-slate-400 hover:text-slate-700 text-lg font-bold p-1"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    <div className="bg-indigo-50/80 p-2.5 rounded-xl text-xs flex justify-between items-center border border-indigo-100">
+                      <span className="font-bold text-indigo-900">종합 평균 ({evalCount}명 평가)</span>
+                      <span className="text-sm font-black text-indigo-600">{avgTotal !== '-' ? `${avgTotal}점` : '-'}</span>
+                    </div>
+
+                    <div className="space-y-2 pt-2 border-t">
+                      <h3 className="font-extrabold text-sm text-slate-800 flex items-center gap-1.5">
+                        📋 사전 설문 내용
+                      </h3>
+                      <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2 text-xs text-slate-700">
+                        <div>
+                          <span className="font-bold text-slate-400 block text-[10px]">클라이밍 경력 및 수준</span>
+                          <p className="mt-0.5 font-medium">{survey?.climbing_exp || '작성된 내용이 없습니다.'}</p>
+                        </div>
+                        <div>
+                          <span className="font-bold text-slate-400 block text-[10px]">걷기 능력</span>
+                          <p className="mt-0.5 font-medium">{survey?.walking_skill || '작성된 내용이 없습니다.'}</p>
+                        </div>
+                        <div>
+                          <span className="font-bold text-slate-400 block text-[10px]">교육 참여 목표</span>
+                          <p className="mt-0.5 font-medium">{survey?.purpose || '작성된 내용이 없습니다.'}</p>
+                        </div>
+                        {survey?.learner_status && (
+                          <div>
+                            <span className="font-bold text-slate-400 block text-[10px]">학습자 상태 및 특이사항</span>
+                            <p className="mt-0.5 font-medium">{survey.learner_status}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="pt-2">
+                      <button
+                        onClick={() => setSelectedGroupViewStudent(null)}
+                        className="w-full py-2.5 bg-slate-900 text-white rounded-xl font-bold text-xs hover:bg-slate-800 transition-colors"
+                      >
+                        확인
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
-
-          
 
 {activeTab === 'admin' && (
   <div className="space-y-6">
