@@ -328,78 +328,7 @@
       const filteredStudents = students.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase().trim()));
 
 
-      const rankedStudents = students
-    .map((student) => {
-      const studentEvals = Object.values(evaluations[student.id] || {});
-
-      if (studentEvals.length === 0) {
-        return {
-          ...student,
-          avgClimbing: 0,
-          avgRappelling: 0,
-          avgBelay: 0,
-          totalScore: 0,
-          evalCount: 0,
-        };
-      }
-
-      const count = studentEvals.length;
-      const sumClimbing = studentEvals.reduce((acc, cur) => acc + (cur.climbing_score || 0), 0);
-      const sumRappelling = studentEvals.reduce((acc, cur) => acc + (cur.rappelling_score || 0), 0);
-      const sumBelay = studentEvals.reduce((acc, cur) => acc + (cur.belay_score || 0), 0);
-
-      const avgClimbing = Number((sumClimbing / count).toFixed(1));
-      const avgRappelling = Number((sumRappelling / count).toFixed(1));
-      const avgBelay = Number((sumBelay / count).toFixed(1));
-
-      const totalScore = Number(((avgClimbing + avgRappelling + avgBelay) / 3).toFixed(1));
-
-      return {
-        ...student,
-        avgClimbing,
-        avgRappelling,
-        avgBelay,
-        totalScore,
-        evalCount: count,
-      };
-    })
-    .sort((a, b) => b.totalScore - a.totalScore); // 고득점순 정렬
-
-
-      // 1. Pass/Fail 항목 배열을 받아 Pass 비율 기준 H/M/L 등급 및 점수 산출
-const calculateGradeFromDetails = (details, keys) => {
-  if (!details || keys.length === 0) return { grade: 'L', score: 1 };
-  
-  let passCount = 0;
-  keys.forEach((key) => {
-    if (details[key] === 'P' || details[key] === 'Pass') passCount++;
-  });
-
-  const passRatio = passCount / keys.length;
-
-  if (passRatio >= 0.8) return { grade: 'H', score: 3 };
-  if (passRatio >= 0.5) return { grade: 'M', score: 2 };
-  return { grade: 'L', score: 1 };
-};
-
-// 2. 평균 점수를 다시 H/M/L 문자열로 변환 (관리자 표기용)
-const scoreToGrade = (score) => {
-  const num = Number(score);
-  if (num >= 2.5) return 'H';
-  if (num >= 1.5) return 'M';
-  if (num > 0) return 'L';
-  return '-';
-};
-
-// 각 파트별 세부항목 키 정의
-const CATEGORY_KEYS = {
-  climbing: ['cb_harness', 'cb_foot', 'cb_hand', 'cb_stability', 'cb_margin'],
-  secondBelay: ['sb_anchor', 'sb_install', 'sb_ropePull', 'sb_ropeSort', 'sb_lowering'],
-  leadingBelay: ['lb_device', 'lb_shuffle', 'lb_handPos', 'lb_stability'],
-  rappelling: ['rp_ropeInstall', 'rp_ropeFix', 'rp_connect', 'rp_stop', 'rp_ascending', 'rp_skill'],
-};
-      
-
+   
 
       const rankedStudents = students
   .map((student) => {
