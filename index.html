@@ -616,15 +616,15 @@
           {/* 조 헤더 */}
           <div className="flex justify-between items-center border-b pb-2">
             <span className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-              <span className="bg-amber-500 text-slate-950 px-2 py-0.5 rounded-lg text-xs">{grpName}</span>
-              <span className="text-xs font-normal text-slate-500">담당 강사: {assignedInst}</span>
+              <span className="bg-indigo-600 text-white px-2 py-0.5 rounded-lg text-xs">{grpName}</span>
+              <span className="text-xs font-normal text-slate-500">담당: {assignedInst}</span>
             </span>
             <span className="text-xs bg-slate-100 px-2.5 py-0.5 rounded-full text-slate-700 font-bold">
               조원 {groupStudents.length}명
             </span>
           </div>
 
-          {/* 조원 리스트 (클릭 시 성적 및 사전 설문 모달 오픈) */}
+          {/* 조원 카드 리스트 */}
           <div className="space-y-2">
             {groupStudents.length === 0 ? (
               <div className="text-center py-6 text-slate-400 text-xs italic bg-slate-50 rounded-xl border border-dashed">
@@ -632,21 +632,28 @@
               </div>
             ) : (
               groupStudents.map(s => {
-                const survey = getSurveyData(s);
+                const survey = (typeof surveys !== 'undefined' && (Array.isArray(surveys) 
+                  ? surveys.find(sur => sur.student_id === s.id || sur.name === s.name) 
+                  : surveys[s.id])) || {
+                    experience: s.experience || s.career || s.survey_experience,
+                    goal: s.goal || s.survey_goal,
+                    memo: s.memo || s.survey_memo,
+                    level: s.level
+                  };
                 const studentEvs = Object.entries(evaluations[s.id] || {});
 
-                // 평균 성적 계산을 위한 데이터 가공
+                // 평균 점수 계산
                 const studentEvals = studentEvs.map(([_, ev]) => ev);
                 let avgTotal = '-';
                 if (studentEvals.length > 0) {
                   let sum = 0;
                   studentEvals.forEach(ev => {
-                    const c = ev.climbing_score || 2;
-                    const sb = ev.second_belay_score || 2;
-                    const lb = ev.leading_belay_score || 2;
-                    const rp = ev.rappelling_score || 2;
-                    const w = ev.walking_score || 2;
-                    sum += (c + sb + lb + rp + w) / 5;
+                    const c = ev.climbing_score || ev.results?.climbingScore || 2;
+                    const sb = ev.second_belay_score || ev.results?.secondBelayScore || 2;
+                    const lb = ev.leading_belay_score || ev.results?.leadingBelayScore || 2;
+                    const rp = ev.rappelling_score || ev.results?.rappellingScore || 2;
+                    const w = ev.walking_score || ev.results?.walkingScore || 2;
+                    sum += (Number(c) + Number(sb) + Number(lb) + Number(rp) + Number(w)) / 5;
                   });
                   avgTotal = (sum / studentEvals.length).toFixed(1);
                 }
@@ -655,35 +662,37 @@
                   <div 
                     key={s.id}
                     onClick={() => setSelectedGroupViewStudent(s)}
-                    className="bg-slate-50 hover:bg-amber-50/40 p-3 rounded-xl border border-slate-200/80 transition-all cursor-pointer flex items-center justify-between gap-3 group"
+                    className="bg-slate-50 hover:bg-slate-100/80 p-3 rounded-xl border border-slate-200/80 transition-all cursor-pointer flex items-center justify-between gap-3 group"
                   >
-                    <div className="flex items-center gap-2.5">
+                    {/* 학생 사진 및 기본 정보 */}
+                    <div className="flex items-center gap-3">
                       {s.photo_url ? (
-                        <img src={s.photo_url} alt={s.name} className="w-10 h-10 rounded-lg object-cover border" />
+                        <img src={s.photo_url} alt={s.name} className="w-12 h-12 rounded-xl object-cover border shadow-2xs shrink-0" />
                       ) : (
-                        <div className="w-10 h-10 rounded-lg bg-slate-200 flex items-center justify-center font-bold text-slate-500 text-sm">
-                          {s.name[0]}
+                        <div className="w-12 h-12 rounded-xl bg-slate-200 flex items-center justify-center font-bold text-slate-600 text-sm border shadow-2xs shrink-0">
+                          {s.name ? s.name[0] : ''}
                         </div>
                       )}
                       <div>
                         <div className="flex items-center gap-1.5">
-                          <span className="font-extrabold text-xs text-slate-900 group-hover:text-amber-700 transition-colors">
+                          <span className="font-extrabold text-sm text-slate-900 group-hover:text-indigo-600 transition-colors">
                             {s.name}
                           </span>
                           {renderLevelBadge(s.level || survey?.level)}
                         </div>
-                        <p className="text-[10px] text-slate-400 mt-0.5">
-                          평가 참여 강사: {studentEvs.length}명
+                        <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+                          {survey?.experience || survey?.career ? `경력: ${survey.experience || survey.career}` : '사전 설문 미작성'} {survey?.goal ? `/ 목표: ${survey.goal}` : ''}
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      <div className="text-right">
-                        <span className="text-[9px] text-slate-400 block font-bold">평균 점수</span>
-                        <span className="text-xs font-black text-indigo-700">{avgTotal}점</span>
+                    {/* 종합 평균 점수 */}
+                    <div className="flex items-center gap-3 text-right shrink-0">
+                      <div>
+                        <span className="text-[10px] text-slate-400 block font-bold">종합 평균</span>
+                        <span className="text-sm font-black text-indigo-600">{avgTotal !== '-' ? `${avgTotal}점` : '-'}</span>
                       </div>
-                      <span className="text-slate-300 font-bold group-hover:text-amber-500 transition-colors">&gt;</span>
+                      <span className="text-slate-300 font-bold group-hover:text-indigo-500 transition-colors">&gt;</span>
                     </div>
                   </div>
                 );
