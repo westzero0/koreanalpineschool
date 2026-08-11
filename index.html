@@ -140,6 +140,7 @@ if (window.__climbingAppLoaded) {
       const [searchQuery, setSearchQuery] = useState("");
       const [selectedStudent, setSelectedStudent] = useState(null);
       const [modalTab, setModalTab] = useState("score");
+      const [isViewOnlyMode, setIsViewOnlyMode] = useState(false);
       const [evalDetails, setEvalDetails] = useState({});
       const [evalResults, setEvalResults] = useState({});
       const [evalNote, setEvalNote] = useState("");
@@ -337,10 +338,11 @@ if (window.__climbingAppLoaded) {
           alert("조 배정 초기화 실패: " + err.message);
         }
       };
-      const handleOpenStudentModal = (student) => {
+      const handleOpenStudentModal = (student, viewOnly = false) => {
         var _a2;
         setSelectedStudent(student);
-        setModalTab("score");
+        setIsViewOnlyMode(viewOnly);
+        setModalTab(viewOnly ? "others" : "score");
         const existingEv = (_a2 = evaluations[student.id]) == null ? void 0 : _a2[instructorName];
         if (existingEv) {
           setEvalDetails(existingEv.details || {});
@@ -744,7 +746,7 @@ if (window.__climbingAppLoaded) {
               {
                 key: s.id,
                 onClick: () => {
-                  handleOpenStudentModal(s);
+                  handleOpenStudentModal(s, true);
                   setIsMyGroupOpen(false);
                 },
                 className: "bg-white p-2.5 rounded-xl border flex items-center justify-between cursor-pointer hover:bg-amber-50/50"
@@ -754,7 +756,14 @@ if (window.__climbingAppLoaded) {
             );
           })));
         }))),
-        selectedStudent && /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" }, /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-5 space-y-4 shadow-2xl" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-between items-center border-b pb-3" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", { className: "font-extrabold text-base text-slate-800 flex items-center gap-1.5" }, selectedStudent.name, /* @__PURE__ */ React.createElement("span", { className: "text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-bold" }, selectedStudent.group_name || "미정")), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-400" }, selectedStudent.age ? `만 ${selectedStudent.age}세` : "나이 미상", " | ", selectedStudent.gender || "성별 미상")), /* @__PURE__ */ React.createElement("button", { onClick: () => setSelectedStudent(null), className: "text-slate-400 text-xl font-bold p-1" }, "✕")), /* @__PURE__ */ React.createElement("div", { className: "bg-indigo-50/80 p-2.5 rounded-xl text-xs flex justify-between items-center border border-indigo-100" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-1.5" }, /* @__PURE__ */ React.createElement("span", { className: "font-bold text-indigo-900" }, "사전 등급:"), renderLevelBadge(selectedStudent.level || ((_a = getSurveyData(selectedStudent)) == null ? void 0 : _a.level))), /* @__PURE__ */ React.createElement("span", { className: "text-[11px] text-indigo-700 font-medium" }, "경력: ", ((_b = getSurveyData(selectedStudent)) == null ? void 0 : _b.climbing_exp) || selectedStudent.climbing_exp || "미입력")), /* @__PURE__ */ React.createElement("div", { className: "flex border-b text-xs font-bold" }, /* @__PURE__ */ React.createElement(
+        selectedStudent && /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" }, /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-5 space-y-4 shadow-2xl" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-between items-center border-b pb-3" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", { className: "font-extrabold text-base text-slate-800 flex items-center gap-1.5" }, selectedStudent.name, /* @__PURE__ */ React.createElement("span", { className: "text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-bold" }, selectedStudent.group_name || "미정")), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-400" }, selectedStudent.age ? `만 ${selectedStudent.age}세` : "나이 미상", " | ", selectedStudent.gender || "성별 미상")), /* @__PURE__ */ React.createElement("button", { onClick: () => setSelectedStudent(null), className: "text-slate-400 text-xl font-bold p-1" }, "✕")), /* @__PURE__ */ React.createElement("div", { className: "bg-indigo-50/80 p-2.5 rounded-xl text-xs flex justify-between items-center border border-indigo-100" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-1.5" }, /* @__PURE__ */ React.createElement("span", { className: "font-bold text-indigo-900" }, "사전 등급:"), renderLevelBadge(selectedStudent.level || ((_a = getSurveyData(selectedStudent)) == null ? void 0 : _a.level))), /* @__PURE__ */ React.createElement("span", { className: "text-[11px] text-indigo-700 font-medium" }, "경력: ", ((_b = getSurveyData(selectedStudent)) == null ? void 0 : _b.climbing_exp) || selectedStudent.climbing_exp || "미입력")), /* @__PURE__ */ React.createElement("div", { className: "flex border-b text-xs font-bold" }, isViewOnlyMode ? /* @__PURE__ */ React.createElement(
+          "button",
+          {
+            onClick: () => setModalTab("others"),
+            className: `flex-1 py-2.5 text-center ${modalTab === "others" ? "border-b-2 border-amber-500 text-amber-600 font-extrabold" : "text-slate-400"}`
+          },
+          "👥 강사 평가"
+        ) : /* @__PURE__ */ React.createElement(
           "button",
           {
             onClick: () => setModalTab("score"),
@@ -768,7 +777,28 @@ if (window.__climbingAppLoaded) {
             className: `flex-1 py-2.5 text-center ${modalTab === "survey" ? "border-b-2 border-amber-500 text-amber-600 font-extrabold" : "text-slate-400"}`
           },
           "📋 사전 설문"
-        )), modalTab === "score" && /* @__PURE__ */ React.createElement("div", { className: "space-y-4 pt-1" }, Object.entries(EVAL_STRUCTURE).map(([categoryKey, category]) => /* @__PURE__ */ React.createElement("div", { key: categoryKey, className: "bg-slate-50 p-3.5 rounded-xl border space-y-3" }, /* @__PURE__ */ React.createElement("div", { className: "font-extrabold text-xs text-slate-900 border-b pb-1.5 flex justify-between items-center" }, /* @__PURE__ */ React.createElement("span", null, category.title), /* @__PURE__ */ React.createElement("span", { className: "text-[10px] font-normal text-slate-400" }, category.resultKey ? "결과 평가" : "세부 항목 평가")), category.subFields.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, category.subFields.map((sub) => {
+        )), modalTab === "others" && (() => {
+          const allEvals = evaluations[selectedStudent.id] || {};
+          const entries = Object.entries(allEvals);
+          if (entries.length === 0) {
+            return /* @__PURE__ */ React.createElement("div", { className: "text-center py-8 text-slate-400 text-xs bg-slate-50 rounded-xl border border-dashed" }, "아직 이 교육생을 평가한 강사가 없습니다.");
+          }
+          const PART_LABELS = [
+            { key: "climbing_score", label: "등반" },
+            { key: "second_belay_score", label: "세컨빌레이" },
+            { key: "leading_belay_score", label: "리딩빌레이" },
+            { key: "rappelling_score", label: "하강" },
+            { key: "walking_score", label: "보행" }
+          ];
+          return /* @__PURE__ */ React.createElement("div", { className: "space-y-2.5 pt-1" }, entries.map(([evInstructor, ev]) => {
+            const isMine = evInstructor === instructorName;
+            return /* @__PURE__ */ React.createElement("div", { key: evInstructor, className: "bg-slate-50 p-3 rounded-xl border space-y-2" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between border-b pb-1.5" }, /* @__PURE__ */ React.createElement("span", { className: "font-extrabold text-xs text-slate-800" }, "👤 ", evInstructor, isMine && /* @__PURE__ */ React.createElement("span", { className: "ml-1 text-[10px] text-amber-600 font-bold" }, "(나)"))), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-5 gap-1 text-center" }, PART_LABELS.map(({ key, label }) => {
+              const val = ev[key];
+              const graded = val !== null && val !== void 0 && val > 0;
+              return /* @__PURE__ */ React.createElement("div", { key, className: "flex flex-col items-center gap-0.5" }, /* @__PURE__ */ React.createElement("span", { className: "text-[9px] text-slate-400 font-bold truncate w-full" }, label), graded ? /* @__PURE__ */ React.createElement("span", { className: "text-xs font-black text-indigo-800" }, scoreToGrade(val), /* @__PURE__ */ React.createElement("span", { className: "text-[9px] font-bold text-slate-400 ml-0.5" }, Number(val).toFixed(1))) : /* @__PURE__ */ React.createElement("span", { className: "text-[10px] text-slate-300 font-bold" }, "-"));
+            })), ev.note ? /* @__PURE__ */ React.createElement("div", { className: "bg-white p-2 rounded-lg border text-[11px] text-slate-700" }, /* @__PURE__ */ React.createElement("span", { className: "block text-[9px] font-bold text-slate-400 mb-0.5" }, "관찰 메모"), ev.note) : null);
+          }));
+        })(), modalTab === "score" && !isViewOnlyMode && /* @__PURE__ */ React.createElement("div", { className: "space-y-4 pt-1" }, Object.entries(EVAL_STRUCTURE).map(([categoryKey, category]) => /* @__PURE__ */ React.createElement("div", { key: categoryKey, className: "bg-slate-50 p-3.5 rounded-xl border space-y-3" }, /* @__PURE__ */ React.createElement("div", { className: "font-extrabold text-xs text-slate-900 border-b pb-1.5 flex justify-between items-center" }, /* @__PURE__ */ React.createElement("span", null, category.title), /* @__PURE__ */ React.createElement("span", { className: "text-[10px] font-normal text-slate-400" }, category.resultKey ? "결과 평가" : "세부 항목 평가")), category.subFields.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, category.subFields.map((sub) => {
           const val = evalDetails[sub.key] || "";
           return /* @__PURE__ */ React.createElement("div", { key: sub.key, className: "flex justify-between items-center text-xs" }, /* @__PURE__ */ React.createElement("span", { className: "text-slate-600 font-medium" }, sub.label), sub.type === "PF" ? /* @__PURE__ */ React.createElement("div", { className: "flex gap-1" }, ["P", "F"].map((opt) => /* @__PURE__ */ React.createElement(
             "button",
