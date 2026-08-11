@@ -24,6 +24,10 @@
   <script type="text/babel">
 const { useState, useEffect, useRef } = React;
 
+// 🧪 테스트용 초기화 버튼(데이터 초기화 / 조배정 초기화) 노출 여부.
+// 실제 운영 시작 후에는 이 값을 false로만 바꾸면 두 버튼이 화면에서 완전히 사라집니다.
+const DEV_TOOLS_ENABLED = true;
+
 const SUPABASE_URL = 'https://rfcnyfdhtmjvkdcipger.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_0qx2MvW4AsHrQeHrK7OmzA_kcxFr9yi';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -307,6 +311,19 @@ function App() {
     }
   };
 
+  const handleResetGroupAssignments = async () => {
+    const confirmInput = prompt('⚠️ 모든 학생의 조 배정이 초기화됩니다 (미배정 상태로 변경).\n초기화하시려면 "초기화"라고 입력해주세요.');
+    if (confirmInput !== '초기화') return;
+    try {
+      const { error } = await supabase.from('students').update({ group_name: '' }).not('id', 'is', null);
+      if (error) throw error;
+      setStudents((prev) => prev.map((s) => ({ ...s, group_name: '' })));
+      alert('모든 학생의 조 배정이 성공적으로 초기화되었습니다.');
+    } catch (err) {
+      alert('조 배정 초기화 실패: ' + err.message);
+    }
+  };
+
   const handleOpenStudentModal = (student) => {
     setSelectedStudent(student);
     setModalTab('score');
@@ -322,20 +339,41 @@ function App() {
     }
   };
 
-  const handleSubFieldChange = (key, val) => setEvalDetails(prev => ({ ...prev, [key]: val }));
-  const handleResultChange = (resKey, val) => setEvalResults(prev => ({ ...prev, [resKey]: val }));
+  const handleSubFieldChange = (key, val) => setEvalDetails(prev => {
+    // 이미 선택된 값을 다시 클릭하면 선택 해지 (잘못 클릭했을 때 되돌리기용)
+    if (prev[key] === val) {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    }
+    return { ...prev, [key]: val };
+  });
+  const handleResultChange = (resKey, val) => setEvalResults(prev => {
+    if (prev[resKey] === val) {
+      const next = { ...prev };
+      delete next[resKey];
+      return next;
+    }
+    return { ...prev, [resKey]: val };
+  });
 
   const handleManualSave = async () => {
     if (!selectedStudent || !instructorName) return;
     setSaving(true);
 
-    const cScore = calculateCategoryScore(evalDetails, CATEGORY_KEYS.climbing) || 2;
-    const sbScore = calculateCategoryScore(evalDetails, CATEGORY_KEYS.secondBelay) || 2;
-    const lbScore = calculateCategoryScore(evalDetails, CATEGORY_KEYS.leadingBelay) || 2;
-    const rpScore = calculateCategoryScore(evalDetails, CATEGORY_KEYS.rappelling) || 2;
+    // 강사가 아예 채점하지 않은 파트는 null로 저장 (0/기본값으로 채우지 않음 → 평균 왜곡 방지)
+    const rawClimbing = calculateCategoryScore(evalDetails, CATEGORY_KEYS.climbing);
+    const rawSecond = calculateCategoryScore(evalDetails, CATEGORY_KEYS.secondBelay);
+    const rawLeading = calculateCategoryScore(evalDetails, CATEGORY_KEYS.leadingBelay);
+    const rawRappelling = calculateCategoryScore(evalDetails, CATEGORY_KEYS.rappelling);
 
-    const wVal = evalResults.walkingResult || 'M';
-    const wScore = ITEM_SCORES[wVal] || 2;
+    const cScore = rawClimbing > 0 ? Number(rawClimbing.toFixed(2)) : null;
+    const sbScore = rawSecond > 0 ? Number(rawSecond.toFixed(2)) : null;
+    const lbScore = rawLeading > 0 ? Number(rawLeading.toFixed(2)) : null;
+    const rpScore = rawRappelling > 0 ? Number(rawRappelling.toFixed(2)) : null;
+
+    const wVal = evalResults.walkingResult;
+    const wScore = wVal ? (ITEM_SCORES[wVal] || null) : null;
 
     const payload = {
       student_id: selectedStudent.id,
@@ -343,10 +381,10 @@ function App() {
       details: evalDetails,
       results: evalResults,
       note: evalNote,
-      climbing_score: Number(cScore.toFixed(2)),
-      second_belay_score: Number(sbScore.toFixed(2)),
-      leading_belay_score: Number(lbScore.toFixed(2)),
-      rappelling_score: Number(rpScore.toFixed(2)),
+      climbing_score: cScore,
+      second_belay_score: sbScore,
+      leading_belay_score: lbScore,
+      rappelling_score: rpScore,
       walking_score: wScore,
       updated_at: new Date().toISOString()
     };
@@ -362,6 +400,11 @@ function App() {
             details: evalDetails,
             results: evalResults,
             note: evalNote,
+            climbing_score: cScore,
+            second_belay_score: sbScore,
+            leading_belay_score: lbScore,
+            rappelling_score: rpScore,
+            walking_score: wScore,
             updatedAt: payload.updated_at
           }
         }
@@ -395,32 +438,53 @@ function App() {
           grades: { climbing: '-', secondBelay: '-', leadingBelay: '-', rappelling: '-', walking: '-' },
           totalScore: 0,
           evalCount: 0,
+          partsCompleted: 0,
+          totalParts: 5,
         };
       }
 
-      const count = studentEvals.length;
-      let sumClimbing = 0, sumSecond = 0, sumLeading = 0, sumRappelling = 0, sumWalking = 0;
+      let sumClimbing = 0, cntClimbing = 0;
+      let sumSecond = 0, cntSecond = 0;
+      let sumLeading = 0, cntLeading = 0;
+      let sumRappelling = 0, cntRappelling = 0;
+      let sumWalking = 0, cntWalking = 0;
 
       studentEvals.forEach((evalItem) => {
         const details = evalItem.details || {};
         const results = evalItem.results || {};
 
-        sumClimbing += evalItem.climbing_score || calculateCategoryScore(details, CATEGORY_KEYS.climbing);
-        sumSecond += evalItem.second_belay_score || calculateCategoryScore(details, CATEGORY_KEYS.secondBelay);
-        sumLeading += evalItem.leading_belay_score || calculateCategoryScore(details, CATEGORY_KEYS.leadingBelay);
-        sumRappelling += evalItem.rappelling_score || calculateCategoryScore(details, CATEGORY_KEYS.rappelling);
+        // 각 항목은 실제로 그 강사가 채점한 경우에만 평균에 포함 (미채점 파트는 건너뜀)
+        const cVal = evalItem.climbing_score ?? (calculateCategoryScore(details, CATEGORY_KEYS.climbing) || null);
+        if (cVal) { sumClimbing += cVal; cntClimbing++; }
+
+        const sbVal = evalItem.second_belay_score ?? (calculateCategoryScore(details, CATEGORY_KEYS.secondBelay) || null);
+        if (sbVal) { sumSecond += sbVal; cntSecond++; }
+
+        const lbVal = evalItem.leading_belay_score ?? (calculateCategoryScore(details, CATEGORY_KEYS.leadingBelay) || null);
+        if (lbVal) { sumLeading += lbVal; cntLeading++; }
+
+        const rpVal = evalItem.rappelling_score ?? (calculateCategoryScore(details, CATEGORY_KEYS.rappelling) || null);
+        if (rpVal) { sumRappelling += rpVal; cntRappelling++; }
 
         const wVal = results.walkingResult || evalItem.walkingResult;
-        sumWalking += evalItem.walking_score || (wVal ? ITEM_SCORES[wVal] : 0);
+        const wScoreVal = evalItem.walking_score ?? (wVal ? ITEM_SCORES[wVal] : null);
+        if (wScoreVal) { sumWalking += wScoreVal; cntWalking++; }
       });
 
-      const avgClimbing = sumClimbing / count;
-      const avgSecond = sumSecond / count;
-      const avgLeading = sumLeading / count;
-      const avgRappelling = sumRappelling / count;
-      const avgWalking = sumWalking / count;
+      const avgClimbing = cntClimbing > 0 ? sumClimbing / cntClimbing : 0;
+      const avgSecond = cntSecond > 0 ? sumSecond / cntSecond : 0;
+      const avgLeading = cntLeading > 0 ? sumLeading / cntLeading : 0;
+      const avgRappelling = cntRappelling > 0 ? sumRappelling / cntRappelling : 0;
+      const avgWalking = cntWalking > 0 ? sumWalking / cntWalking : 0;
 
-      const totalScore = Number(((avgClimbing + avgSecond + avgLeading + avgRappelling + avgWalking) / 5).toFixed(1));
+      // 종합 평균도 실제로 채점된 파트만으로 계산 (아무도 채점 안 한 파트는 0으로 끌어내리지 않음)
+      const ratedAvgs = [avgClimbing, avgSecond, avgLeading, avgRappelling, avgWalking].filter((v) => v > 0);
+      const totalScore = ratedAvgs.length > 0
+        ? Number((ratedAvgs.reduce((a, b) => a + b, 0) / ratedAvgs.length).toFixed(1))
+        : 0;
+
+      // 5개 파트 중 실제로 채점이 이루어진 파트 개수 (완료 현황 표시용)
+      const partsCompleted = [cntClimbing, cntSecond, cntLeading, cntRappelling, cntWalking].filter((c) => c > 0).length;
 
       return {
         ...student,
@@ -432,7 +496,9 @@ function App() {
           walking: scoreToGrade(avgWalking),
         },
         totalScore,
-        evalCount: count,
+        evalCount: studentEvals.length,
+        partsCompleted,
+        totalParts: 5,
       };
     })
     .sort((a, b) => b.totalScore - a.totalScore);
@@ -444,7 +510,7 @@ function App() {
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-    <header className="bg-slate-900 text-white p-4 sticky top-0 z-30 shadow-md">
+      <header className="bg-slate-900 text-white p-4 sticky top-0 z-30 shadow-md">
         <div className="flex justify-between items-center">
           <div>
             <h1 className="font-extrabold text-base tracking-wide text-amber-400 flex items-center gap-1.5">
@@ -746,10 +812,10 @@ function App() {
                           <span className="font-bold text-slate-400 block text-[10px]">교육 참여 목표</span>
                           <p className="mt-0.5 font-medium">{survey?.purpose || '작성된 내용이 없습니다.'}</p>
                         </div>
-                        {survey?.physical_note && (
+                        {survey?.learner_status && (
                           <div>
                             <span className="font-bold text-slate-400 block text-[10px]">학습자 상태 및 특이사항</span>
-                            <p className="mt-0.5 font-medium">{survey.physical_note}</p>
+                            <p className="mt-0.5 font-medium">{survey.learner_status}</p>
                           </div>
                         )}
                       </div>
@@ -779,12 +845,22 @@ function App() {
           <p className="text-[11px] text-slate-500 mt-0.5">평균 점수 및 파트별 H/M/L 결과 통합</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <button
-            onClick={handleResetEvaluations}
-            className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-semibold rounded-lg transition-colors"
-          >
-            데이터 초기화
-          </button>
+          {DEV_TOOLS_ENABLED && (
+            <>
+              <button
+                onClick={handleResetGroupAssignments}
+                className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 text-xs font-semibold rounded-lg transition-colors"
+              >
+                조배정 초기화
+              </button>
+              <button
+                onClick={handleResetEvaluations}
+                className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-semibold rounded-lg transition-colors"
+              >
+                데이터 초기화
+              </button>
+            </>
+          )}
           <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
             총 {calculatedList.length}명
           </span>
@@ -815,7 +891,18 @@ function App() {
                       ))}
                     </select>
                   </div>
-                  <p className="text-[10px] text-slate-400 mt-0.5">평가 강사: {s.evalCount}명</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <p className="text-[10px] text-slate-400">평가 강사: {s.evalCount}명</p>
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${
+                      s.partsCompleted >= s.totalParts
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : s.partsCompleted > 0
+                          ? 'bg-amber-50 text-amber-700 border-amber-200'
+                          : 'bg-slate-100 text-slate-400 border-slate-200'
+                    }`}>
+                      {s.partsCompleted >= s.totalParts ? '채점완료' : `채점 ${s.partsCompleted}/${s.totalParts}`}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -896,7 +983,7 @@ function App() {
                   )}
                 </div>
 
-               <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
                   <select
                     value={groupInstructors[g.name] || g.instructor_name || ''}
                     onChange={(e) => handleInstructorChange(g.id, e.target.value)}
@@ -909,6 +996,7 @@ function App() {
                       </option>
                     ))}
                   </select>
+
                   <button onClick={() => handleDeleteGroup(g.id, g.name)} className="text-xs text-slate-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-colors" title="조 삭제">
                     🗑️
                   </button>
@@ -1177,7 +1265,7 @@ function App() {
                           </div>
                           <div className="bg-slate-50 p-3 rounded-xl border space-y-1">
                             <span className="font-bold text-indigo-900">⚠️ 학습자 상태 및 특이사항</span>
-                            <p className="text-slate-700 bg-white p-2 rounded border mt-0.5">{survey.physical_note || '미입력'}</p>
+                            <p className="text-slate-700 bg-white p-2 rounded border mt-0.5">{survey.learner_status || '미입력'}</p>
                           </div>
                         </div>
                       );
