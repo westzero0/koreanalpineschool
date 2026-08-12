@@ -26,7 +26,7 @@ if (window.__climbingAppLoaded) {
   window.__climbingAppLoaded = true;
   (function() {
     const { useState, useEffect, useRef } = React;
-    const DEV_TOOLS_ENABLED = true;
+    const DEV_TOOLS_ENABLED = false;
     const SUPABASE_URL = "https://rfcnyfdhtmjvkdcipger.supabase.co";
     const SUPABASE_ANON_KEY = "sb_publishable_0qx2MvW4AsHrQeHrK7OmzA_kcxFr9yi";
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
